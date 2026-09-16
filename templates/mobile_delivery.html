@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consignment Intake - {{ c.consignment_no }}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: #f8fafc; color: #0f172a; padding: 16px; max-width: 600px; margin: 0 auto; }
+  .card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+  .header { font-size: 1.2rem; font-weight: 900; margin-bottom: 4px; }
+  .meta { font-size: 0.85rem; color: #64748b; margin-bottom: 12px; }
+  .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 800; background: #e0f2fe; color: #0284c7; }
+  .badge.delivered { background: #dcfce7; color: #15803d; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
+  th { text-align: left; padding: 8px; background: #f1f5f9; color: #475569; font-weight: 800; }
+  td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+  .btn { width: 100%; padding: 14px; background: #000; color: #fff; font-size: 1rem; font-weight: 800; border: none; border-radius: 6px; cursor: pointer; margin-top: 14px; }
+  .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <span class="badge {{ 'delivered' if c.status == 'Delivered/Reconciled' else '' }}">{{ c.status }}</span>
+  <div class="header" style="margin-top:8px;">{{ c.consignment_no }}</div>
+  <div class="meta">
+    Origin: <strong>{{ settings.store_name }}</strong> (Lic: {{ settings.store_licence }})<br>
+    Destination: <strong>{{ c.consignee_dealer_name }}</strong> (Lic: {{ c.consignee_licence_no }})<br>
+    Carrier / Method: <strong>{{ c.carrier_name }}</strong>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="font-size:1rem; font-weight:900;">Verified Regulated Firearms ({{ items|length }})</h3>
+  <table>
+    <thead><tr><th>Serial</th><th>Make/Model</th><th>Calibre</th></tr></thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td><strong>{{ item.serial }}</strong></td>
+        <td>{{ item.make }} {{ item.model }}</td>
+        <td>{{ item.calibre }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  {% if c.status == 'Delivered/Reconciled' %}
+  <div style="color:#15803d; font-weight:800; text-align:center; padding:10px;">
+    ✓ This consignment has been reconciled into destination dealer records.
+  </div>
+  {% else %}
+  <label style="font-size:0.75rem; font-weight:800; text-transform:uppercase; color:#64748b; display:block; margin-bottom:6px;">
+    Receiving Dealer Staff / Licencee Name
+  </label>
+  <input type="text" id="signer-name" placeholder="Full Name or Licence #" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:4px; font-size:1rem;">
+  
+  <button class="btn" onclick="confirmIntake()">Confirm Intake &amp; Sign Off</button>
+  {% endif %}
+</div>
+
+<script>
+async function confirmIntake() {
+  const name = document.getElementById('signer-name').value.trim();
+  if (!name) {
+    alert("Please enter the receiving staff or dealer licence number.");
+    return;
+  }
+  const f = new FormData();
+  f.append('delivered_to', name);
+  const r = await fetch('/api/consignments/{{ c.consignment_no }}/reconcile', { method: 'POST', body: f });
+  if (r.ok) {
+    alert("Intake confirmed. Firearms marked received in registry records.");
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>
