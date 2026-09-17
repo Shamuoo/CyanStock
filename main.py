@@ -7,12 +7,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 
-try:
-    import httpx
-except ImportError:
-    httpx = None
-
-from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File, Query, Depends
+from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -38,15 +33,14 @@ DEFAULT_CONFIG = {
     "default_label_profile": "72mm",
     "theme": "dark",
     "barcode_preference": "serial",
+    "auto_enter_scanner": True,
     "features": {
         "special_orders": True,
-        "laybys": True,
         "suppliers": True,
-        "shipping": True,
+        "laybys": True,
+        "safe_drawers": True,
         "cyanlabel_preview": True
-    },
-    "hike_pos_url": "",
-    "hike_api_token": ""
+    }
 }
 
 def load_config() -> Dict[str, Any]:
@@ -91,9 +85,6 @@ CREATE TABLE IF NOT EXISTS customers (
     licence_no TEXT DEFAULT '',
     address TEXT DEFAULT '',
     notes TEXT DEFAULT '',
-    licence_categories TEXT DEFAULT '',
-    store_credit REAL DEFAULT 0.0,
-    hike_id TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -103,9 +94,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
     account_number TEXT DEFAULT '',
     rep_name TEXT DEFAULT '',
     rep_phone TEXT DEFAULT '',
-    rep_email TEXT DEFAULT '',
     order_email TEXT DEFAULT '',
-    portal_url TEXT DEFAULT '',
     payment_terms TEXT DEFAULT '30 Days Net',
     notes TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -125,13 +114,11 @@ CREATE TABLE IF NOT EXISTS firearms (
     shot_capacity TEXT DEFAULT '',
     category TEXT NOT NULL DEFAULT 'Cat A/B',
     condition TEXT DEFAULT 'Storage',
-    storage_type TEXT DEFAULT 'Customer Storage',
+    storage_type TEXT DEFAULT 'Sale',
     layby_step TEXT DEFAULT '',
-    repair_step TEXT DEFAULT '',
     customer_id INTEGER,
     consignor_name TEXT DEFAULT '',
     consignor_phone TEXT DEFAULT '',
-    date_acquired TEXT DEFAULT '',
     price REAL DEFAULT 0.0,
     was_price REAL DEFAULT 0.0,
     on_sale INTEGER DEFAULT 0,
@@ -147,10 +134,8 @@ CREATE TABLE IF NOT EXISTS firearms (
 
 CREATE TABLE IF NOT EXISTS special_orders (
     order_id TEXT PRIMARY KEY,
-    customer_id INTEGER,
     customer_name TEXT NOT NULL,
     customer_phone TEXT DEFAULT '',
-    item_type TEXT DEFAULT 'Firearm',
     make TEXT NOT NULL,
     model TEXT NOT NULL,
     calibre TEXT DEFAULT '',
@@ -161,8 +146,7 @@ CREATE TABLE IF NOT EXISTS special_orders (
     order_status TEXT NOT NULL DEFAULT 'Staged / Ordered',
     serial_number TEXT DEFAULT '',
     notes TEXT DEFAULT '',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS movement_logs (
@@ -189,34 +173,12 @@ DEFAULT_LOCATIONS = [
 def normalize_serial(s: str) -> str:
     return s.strip().upper() if s else ""
 
-async def ensure_columns(db: aiosqlite.Connection):
-    col_migrations = [
-        ("locations", "color", "TEXT DEFAULT '#0284c7'"),
-        ("firearms", "barrel", "TEXT DEFAULT ''"),
-        ("firearms", "shot_capacity", "TEXT DEFAULT ''"),
-        ("firearms", "printed_notes", "TEXT DEFAULT ''"),
-        ("firearms", "was_price", "REAL DEFAULT 0.0"),
-        ("firearms", "on_sale", "INTEGER DEFAULT 0"),
-        ("firearms", "rego_no", "TEXT DEFAULT ''"),
-        ("firearms", "book_no", "TEXT DEFAULT ''")
-    ]
-    for tbl, col, ctype in col_migrations:
-        async with db.execute(f"PRAGMA table_info({tbl})") as cur:
-            cols = [r[1] for r in await cur.fetchall()]
-            if col not in cols:
-                try:
-                    await db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
-                    await db.commit()
-                except Exception:
-                    pass
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA_SQL)
-        await ensure_columns(db)
         for loc in DEFAULT_LOCATIONS:
             await db.execute("""
                 INSERT OR IGNORE INTO locations (id, name, category, max_capacity, color, notes)
@@ -225,18 +187,13 @@ async def lifespan(app: FastAPI):
         await db.commit()
     yield
 
-app = FastAPI(title="CyanStock", version="0.12.10", lifespan=lifespan)
+app = FastAPI(title="CyanStock", version="0.14.0", lifespan=lifespan)
 app.mount("/static/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
-# Pydantic Schemas
 class QuickMovePayload(BaseModel):
     serial: str
     target_location_id: str
     operator_name: Optional[str] = "Counter Staff"
-
-class LinkBarcodePayload(BaseModel):
-    target_serial: str
-    scanned_barcode: str
 
 class FirearmModel(BaseModel):
     serial: str
@@ -251,20 +208,16 @@ class FirearmModel(BaseModel):
     barrel: Optional[str] = ""
     shot_capacity: Optional[str] = ""
     category: Optional[str] = "Cat A/B"
-    condition: Optional[str] = "Storage"
-    storage_type: Optional[str] = "Customer Storage"
+    condition: Optional[str] = "New"
+    storage_type: Optional[str] = "Sale"
     layby_step: Optional[str] = ""
-    customer_id: Optional[int] = None
     consignor_name: Optional[str] = ""
     consignor_phone: Optional[str] = ""
     price: Optional[float] = 0.0
     was_price: Optional[float] = 0.0
-    on_sale: Optional[int] = 0
-    status: Optional[str] = "In Store"
     current_location_id: str = "UNASSIGNED"
-    notes: Optional[str] = ""
     printed_notes: Optional[str] = ""
-    image_url: Optional[str] = ""
+    notes: Optional[str] = ""
 
 class SupplierModel(BaseModel):
     id: Optional[int] = None
@@ -272,36 +225,16 @@ class SupplierModel(BaseModel):
     account_number: Optional[str] = ""
     rep_name: Optional[str] = ""
     rep_phone: Optional[str] = ""
-    rep_email: Optional[str] = ""
     order_email: Optional[str] = ""
-    portal_url: Optional[str] = ""
     payment_terms: Optional[str] = "30 Days Net"
-    notes: Optional[str] = ""
-
-class SpecialOrderIn(BaseModel):
-    order_id: str
-    customer_name: str
-    customer_phone: Optional[str] = ""
-    make: str
-    model: str
-    calibre: Optional[str] = ""
-    supplier_name: Optional[str] = ""
-    supplier_po_ref: Optional[str] = ""
-    deposit_paid: Optional[float] = 0.0
-    total_price: Optional[float] = 0.0
-    order_status: Optional[str] = "Staged / Ordered"
-    serial_number: Optional[str] = ""
     notes: Optional[str] = ""
 
 class SettingsUpdateModel(BaseModel):
     store_name: str
     store_licence: str
-    store_state: Optional[str] = "NSW"
-    store_address: Optional[str] = ""
-    store_phone: Optional[str] = ""
-    store_email: Optional[str] = ""
     theme: Optional[str] = "dark"
     barcode_preference: Optional[str] = "serial"
+    auto_enter_scanner: Optional[bool] = True
     features: Optional[Dict[str, bool]] = None
 
 @app.get("/", response_class=HTMLResponse)
@@ -319,21 +252,18 @@ async def update_settings(payload: SettingsUpdateModel):
     save_config(cfg)
     return {"status": "success", "settings": cfg}
 
-# Unified Scan Route
 @app.post("/api/scan")
 async def handle_scan(barcode: str = Form(...)):
     raw = barcode.strip().upper()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 
-        # 1. Location Placard Check
         loc_id = raw[4:] if raw.startswith("LOC:") else raw
         async with db.execute("SELECT * FROM locations WHERE UPPER(id) = ? OR UPPER(name) = ?", (loc_id, raw)) as cur:
             loc = await cur.fetchone()
             if loc:
                 return {"scan_type": "location_locked", "location_id": loc["id"], "location_name": loc["name"], "color": loc["color"]}
 
-        # 2. Firearm Match Check (Serial, SKU, Rego, Book Reference)
         async with db.execute("""
             SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name, l.color as location_color,
                    c.name as customer_db_name, c.phone as customer_db_phone
@@ -348,17 +278,6 @@ async def handle_scan(barcode: str = Form(...)):
 
         return {"scan_type": "not_found", "scanned_value": raw}
 
-# Link Scanned Barcode to an Existing Gun
-@app.post("/api/firearms/link-barcode")
-async def link_barcode(payload: LinkBarcodePayload):
-    norm_s = normalize_serial(payload.target_serial)
-    new_sku = payload.scanned_barcode.strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE firearms SET sku = ? WHERE UPPER(serial) = ?", (new_sku, norm_s))
-        await db.commit()
-    return {"status": "success", "serial": norm_s, "sku": new_sku}
-
-# Two-Scan Fast Relocation
 @app.post("/api/scan/allocate")
 async def allocate_scan(payload: QuickMovePayload):
     norm_s = normalize_serial(payload.serial)
@@ -384,15 +303,14 @@ async def allocate_scan(payload: QuickMovePayload):
 
         await db.execute("""
             INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
-            VALUES (?, ?, ?, ?, 'Two-Scan Reallocation')
+            VALUES (?, ?, ?, ?, 'Two-Scan Fast Reallocation')
         """, (norm_s, gun["current_location_id"], loc["id"], payload.operator_name or "Counter Staff"))
 
         await db.commit()
         return {"status": "success", "serial": norm_s, "moved_to": loc["name"], "location_id": loc["id"]}
 
-# Firearms Directory
 @app.get("/api/firearms")
-async def get_firearms(search: Optional[str] = None, location_id: Optional[str] = None):
+async def get_firearms(search: Optional[str] = None, location_id: Optional[str] = None, storage_type: Optional[str] = None):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         sql = """
@@ -408,6 +326,9 @@ async def get_firearms(search: Optional[str] = None, location_id: Optional[str] 
         if location_id:
             sql += " AND UPPER(f.current_location_id) = ?"
             params.append(location_id.strip().upper())
+        if storage_type:
+            sql += " AND f.storage_type = ?"
+            params.append(storage_type)
         if search:
             sql += " AND (f.serial LIKE ? OR f.sku LIKE ? OR f.make LIKE ? OR f.model LIKE ? OR f.calibre LIKE ? OR f.rego_no LIKE ? OR c.name LIKE ?)"
             s = f"%{search.strip()}%"
@@ -416,22 +337,44 @@ async def get_firearms(search: Optional[str] = None, location_id: Optional[str] 
         async with db.execute(sql, params) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
+@app.get("/api/firearms/{serial}")
+async def get_firearm_detail(serial: str):
+    norm_s = normalize_serial(serial)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name, l.color as location_color,
+                   c.name as customer_db_name, c.phone as customer_db_phone
+            FROM firearms f
+            LEFT JOIN locations l ON f.current_location_id = l.id
+            LEFT JOIN customers c ON f.customer_id = c.id
+            WHERE UPPER(f.serial) = ?
+        """, (norm_s,)) as cur:
+            row = await cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Firearm not found")
+            return dict(row)
+
 @app.post("/api/firearms")
 async def save_firearm(gun: FirearmModel):
     norm_s = normalize_serial(gun.serial)
     loc = gun.current_location_id.strip().upper() if gun.current_location_id else "UNASSIGNED"
     cfg = load_config()
-    final_sku = gun.sku.strip().upper() if gun.sku else (norm_s if cfg.get("barcode_preference") == "serial" else norm_s)
+    final_sku = gun.sku.strip().upper() if gun.sku else norm_s
+
+    # Clear owner details if floor stock
+    owner_name = gun.consignor_name.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
+    owner_phone = gun.consignor_phone.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
 
     async with aiosqlite.connect(DB_PATH) as db:
-        cust_id = gun.customer_id
-        if gun.consignor_name and not cust_id:
-            async with db.execute("SELECT id FROM customers WHERE name = ?", (gun.consignor_name.strip(),)) as cur_c:
+        cust_id = None
+        if owner_name:
+            async with db.execute("SELECT id FROM customers WHERE name = ?", (owner_name,)) as cur_c:
                 row = await cur_c.fetchone()
                 if row:
                     cust_id = row[0]
                 else:
-                    cur_ins = await db.execute("INSERT INTO customers (name, phone) VALUES (?, ?)", (gun.consignor_name.strip(), gun.consignor_phone.strip()))
+                    cur_ins = await db.execute("INSERT INTO customers (name, phone) VALUES (?, ?)", (owner_name, owner_phone))
                     cust_id = cur_ins.lastrowid
 
         await db.execute("""
@@ -439,20 +382,25 @@ async def save_firearm(gun: FirearmModel):
                 serial, sku, rego_no, book_no, item_type, make, model, calibre,
                 action, barrel, shot_capacity, category, condition, storage_type,
                 layby_step, customer_id, consignor_name, consignor_phone,
-                price, was_price, on_sale, status, current_location_id, notes, printed_notes, image_url, last_scanned_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                price, was_price, status, current_location_id, notes, printed_notes, last_scanned_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
         """, (
             norm_s, final_sku, gun.rego_no or "", gun.book_no or "", gun.item_type or "Firearm",
             gun.make.strip(), gun.model.strip(), gun.calibre.strip() or "N/A", gun.action or "",
-            gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat A/B", gun.condition or "Storage",
-            gun.storage_type or "Customer Storage", gun.layby_step or "", cust_id, gun.consignor_name or "",
-            gun.consignor_phone or "", gun.price or 0.0, gun.was_price or 0.0, gun.on_sale or 0, loc,
-            gun.notes or "", gun.printed_notes or "", gun.image_url or ""
+            gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat A/B", gun.condition or "New",
+            gun.storage_type or "Sale", gun.layby_step or "", cust_id, owner_name, owner_phone,
+            gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or ""
         ))
         await db.commit()
     return {"status": "success", "serial": norm_s}
 
-# Safes and Locations
+@app.delete("/api/firearms/{serial}")
+async def delete_firearm(serial: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM firearms WHERE UPPER(serial) = ?", (normalize_serial(serial),))
+        await db.commit()
+    return {"status": "success"}
+
 @app.get("/api/locations")
 async def get_locations():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -464,14 +412,20 @@ async def get_locations():
             GROUP BY l.id ORDER BY l.category, l.id
         """
         async with db.execute(sql) as cur:
-            return [dict(r) for r in await cur.fetchall()]
+            rows = [dict(r) for r in await cur.fetchall()]
+            for r in rows:
+                cap = r["max_capacity"]
+                cur_cnt = r["current_count"]
+                r["percent_full"] = round((cur_cnt / cap) * 100) if cap > 0 else 0
+            return rows
 
 @app.get("/api/locations/{loc_id}/firearms")
 async def get_safe_contents(loc_id: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         sql = """
-            SELECT f.*, COALESCE(c.name, f.consignor_name, 'Store Stock') as customer_name
+            SELECT f.*, COALESCE(c.name, f.consignor_name, '') as customer_name,
+                   COALESCE(c.phone, f.consignor_phone, '') as customer_phone
             FROM firearms f
             LEFT JOIN customers c ON f.customer_id = c.id
             WHERE UPPER(f.current_location_id) = ? AND f.status = 'In Store'
@@ -480,7 +434,6 @@ async def get_safe_contents(loc_id: str):
         async with db.execute(sql, (loc_id.strip().upper(),)) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
-# Supplier Directory
 @app.get("/api/suppliers")
 async def get_suppliers():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -493,14 +446,14 @@ async def save_supplier(s: SupplierModel):
     async with aiosqlite.connect(DB_PATH) as db:
         if s.id:
             await db.execute("""
-                UPDATE suppliers SET company_name=?, account_number=?, rep_name=?, rep_phone=?, order_email=?, portal_url=?, payment_terms=?, notes=?
+                UPDATE suppliers SET company_name=?, account_number=?, rep_name=?, rep_phone=?, order_email=?, payment_terms=?, notes=?
                 WHERE id=?
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.portal_url, s.payment_terms, s.notes, s.id))
+            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes, s.id))
         else:
             await db.execute("""
-                INSERT INTO suppliers (company_name, account_number, rep_name, rep_phone, order_email, portal_url, payment_terms, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.portal_url, s.payment_terms, s.notes))
+                INSERT INTO suppliers (company_name, account_number, rep_name, rep_phone, order_email, payment_terms, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes))
         await db.commit()
     return {"status": "success"}
 
@@ -510,39 +463,6 @@ async def delete_supplier(sid: int):
         await db.execute("DELETE FROM suppliers WHERE id = ?", (sid,))
         await db.commit()
     return {"status": "success"}
-
-# Special Orders
-@app.get("/api/special-orders")
-async def get_special_orders():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM special_orders ORDER BY created_at DESC") as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.post("/api/special-orders")
-async def save_special_order(o: SpecialOrderIn):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            INSERT OR REPLACE INTO special_orders (
-                order_id, customer_name, customer_phone, make, model, calibre,
-                supplier_name, supplier_po_ref, deposit_paid, total_price, order_status, serial_number, notes, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (o.order_id.strip().upper(), o.customer_name.strip(), o.customer_phone.strip(), o.make.strip(), o.model.strip(), o.calibre.strip(), o.supplier_name.strip(), o.supplier_po_ref.strip(), o.deposit_paid, o.total_price, o.order_status, o.serial_number.strip().upper(), o.notes.strip()))
-        await db.commit()
-    return {"status": "success"}
-
-# Customers
-@app.get("/api/customers")
-async def get_customers():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("""
-            SELECT c.*, COUNT(f.serial) as active_guns 
-            FROM customers c 
-            LEFT JOIN firearms f ON f.customer_id = c.id AND f.status != 'Disposed/Sold' 
-            GROUP BY c.id ORDER BY c.name ASC
-        """) as cur:
-            return [dict(r) for r in await cur.fetchall()]
 
 if __name__ == "__main__":
     import uvicorn
