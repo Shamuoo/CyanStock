@@ -30,7 +30,7 @@ DEFAULT_CONFIG = {
     "store_phone": "(02) 6736 1234",
     "store_email": "sales@tenterfieldfirearms.com.au",
     "cyanlabel_url": "https://labels.cyannas.com",
-    "default_label_profile": "72mm",
+    "default_label_profile": "62mm",
     "theme": "dark",
     "barcode_preference": "serial",
     "auto_enter_scanner": True,
@@ -38,9 +38,8 @@ DEFAULT_CONFIG = {
         "special_orders": True,
         "suppliers": True,
         "customers": True,
-        "laybys": True,
-        "safe_drawers": True,
-        "cyanlabel_preview": True
+        "closing_sweep": True,
+        "safe_audit": True
     }
 }
 
@@ -154,7 +153,7 @@ CREATE TABLE IF NOT EXISTS movement_logs (
 """
 
 DEFAULT_LOCATIONS = [
-    ("UNASSIGNED", "Unassigned Intake", "Intake", 0, "#64748b", "Awaiting safe placement"),
+    ("UNASSIGNED", "Unassigned Intake", "Intake", 0, "#64748b", "Awaiting safe allocation"),
     ("SAFE-01", "Safe 1 (Spika)", "Safe", 30, "#0284c7", "Main customer storage & intake"),
     ("SAFE-02", "Safe 2 (Green)", "Safe", 25, "#10b981", "Deceased estates & longarms"),
     ("SAFE-03", "Safe 3 (Copper)", "Safe", 25, "#d97706", "Customer storage vault"),
@@ -191,7 +190,7 @@ async def lifespan(app: FastAPI):
         await db.commit()
     yield
 
-app = FastAPI(title="CyanStock", version="0.14.1", lifespan=lifespan)
+app = FastAPI(title="CyanStock", version="0.14.2", lifespan=lifespan)
 app.mount("/static/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 # Pydantic Models
@@ -206,15 +205,17 @@ class LocationModel(BaseModel):
 class PinLoginPayload(BaseModel):
     pin: str
 
-class UserCreateModel(BaseModel):
-    username: str
-    full_name: str
-    pin: str
-    role: str = "Employee"
-    badge_code: Optional[str] = ""
-
 class QuickMovePayload(BaseModel):
     serial: str
+    target_location_id: str
+    operator_name: Optional[str] = "Duty Staff"
+
+class BulkMovePayload(BaseModel):
+    serials: List[str]
+    target_location_id: str
+    operator_name: Optional[str] = "Duty Staff"
+
+class MassMigratePayload(BaseModel):
     target_location_id: str
     operator_name: Optional[str] = "Duty Staff"
 
@@ -243,8 +244,6 @@ class FirearmModel(BaseModel):
     category: Optional[str] = "Cat A/B"
     condition: Optional[str] = "New"
     storage_type: Optional[str] = "Sale"
-    layby_step: Optional[str] = ""
-    customer_id: Optional[int] = None
     consignor_name: Optional[str] = ""
     consignor_phone: Optional[str] = ""
     price: Optional[float] = 0.0
@@ -269,225 +268,8 @@ class SettingsUpdateModel(BaseModel):
     theme: Optional[str] = "dark"
     barcode_preference: Optional[str] = "serial"
     auto_enter_scanner: Optional[bool] = True
-    features: Optional[Dict[str, bool]] = None
 
-# --- Global Search Route ---
-@app.get("/api/search")
-async def global_search(q: str = Query(...)):
-    term = f"%{q.strip().upper()}%"
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-
-        # Search Firearms
-        async with db.execute("""
-            SELECT f.serial, f.sku, f.make, f.model, f.calibre, f.rego_no, f.storage_type,
-                   COALESCE(l.name, f.current_location_id) as location_name
-            FROM firearms f
-            LEFT JOIN locations l ON f.current_location_id = l.id
-            WHERE UPPER(f.serial) LIKE ? OR UPPER(f.sku) LIKE ? OR UPPER(f.rego_no) LIKE ? 
-               OR UPPER(f.book_no) LIKE ? OR UPPER(f.make) LIKE ? OR UPPER(f.model) LIKE ? 
-               OR UPPER(f.consignor_name) LIKE ?
-            LIMIT 8
-        """, (term, term, term, term, term, term, term)) as cur_g:
-            guns = [dict(r) for r in await cur_g.fetchall()]
-
-        # Search Customers
-        async with db.execute("""
-            SELECT id, name, business_name, phone, licence_no 
-            FROM customers 
-            WHERE UPPER(name) LIKE ? OR UPPER(business_name) LIKE ? OR phone LIKE ? OR UPPER(licence_no) LIKE ?
-            LIMIT 5
-        """, (term, term, term, term)) as cur_c:
-            customers = [dict(r) for r in await cur_c.fetchall()]
-
-        # Search Safes
-        async with db.execute("""
-            SELECT id, name, category, color, max_capacity 
-            FROM locations 
-            WHERE UPPER(id) LIKE ? OR UPPER(name) LIKE ?
-            LIMIT 4
-        """, (term, term)) as cur_l:
-            safes = [dict(r) for r in await cur_l.fetchall()]
-
-    return {"firearms": guns, "customers": customers, "safes": safes}
-
-# --- Authentication Routes ---
-@app.post("/api/auth/pin-login")
-async def pin_login(payload: PinLoginPayload):
-    pin = payload.pin.strip()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, username, full_name, role, badge_code FROM users WHERE pin = ? AND is_active = 1", (pin,)) as cur:
-            user = await cur.fetchone()
-            if not user:
-                raise HTTPException(status_code=401, detail="Invalid PIN code")
-            return {"status": "success", "user": dict(user)}
-
-@app.get("/api/users")
-async def get_users():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, username, full_name, role, badge_code, is_active FROM users ORDER BY role ASC, full_name ASC") as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.post("/api/users")
-async def create_user(u: UserCreateModel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        try:
-            await db.execute("""
-                INSERT INTO users (username, full_name, pin, role, badge_code)
-                VALUES (?, ?, ?, ?, ?)
-            """, (u.username.strip().lower(), u.full_name.strip(), u.pin.strip(), u.role, u.badge_code.strip().upper()))
-            await db.commit()
-            return {"status": "success"}
-        except aiosqlite.IntegrityError:
-            raise HTTPException(status_code=400, detail="Username already exists")
-
-@app.delete("/api/users/{user_id}")
-async def delete_user(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        await db.commit()
-        return {"status": "success"}
-
-# --- Safes & Locations CRUD ---
-@app.get("/api/locations")
-async def get_locations():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        sql = """
-            SELECT l.*, COUNT(f.serial) as current_count 
-            FROM locations l 
-            LEFT JOIN firearms f ON f.current_location_id = l.id AND f.status = 'In Store' 
-            GROUP BY l.id ORDER BY l.category, l.id
-        """
-        async with db.execute(sql) as cur:
-            rows = [dict(r) for r in await cur.fetchall()]
-            for r in rows:
-                cap = r["max_capacity"]
-                cur_cnt = r["current_count"]
-                r["percent_full"] = round((cur_cnt / cap) * 100) if cap > 0 else 0
-            return rows
-
-@app.post("/api/locations")
-async def save_location(loc: LocationModel):
-    lid = loc.id.strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            INSERT INTO locations (id, name, category, max_capacity, color, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                category = excluded.category,
-                max_capacity = excluded.max_capacity,
-                color = excluded.color,
-                notes = excluded.notes
-        """, (lid, loc.name.strip(), loc.category, loc.max_capacity, loc.color, loc.notes or ""))
-        await db.commit()
-    return {"status": "success", "id": lid}
-
-@app.get("/api/locations/{loc_id}/firearms")
-async def get_safe_contents(loc_id: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        sql = """
-            SELECT f.*, COALESCE(c.name, f.consignor_name, '') as customer_name,
-                   COALESCE(c.phone, f.consignor_phone, '') as customer_phone
-            FROM firearms f
-            LEFT JOIN customers c ON f.customer_id = c.id
-            WHERE UPPER(f.current_location_id) = ? AND f.status = 'In Store'
-            ORDER BY f.last_scanned_at DESC
-        """
-        async with db.execute(sql, (loc_id.strip().upper(),)) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-# --- Customer Directory Routes ---
-@app.get("/api/customers")
-async def get_customers():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        sql = """
-            SELECT c.*, 
-                   COUNT(CASE WHEN f.status = 'In Store' THEN f.serial END) as active_guns,
-                   COUNT(CASE WHEN f.storage_type = 'Customer Storage' AND f.status = 'In Store' THEN f.serial END) as storage_guns,
-                   COUNT(CASE WHEN f.storage_type = 'Consignment Sale' AND f.status = 'In Store' THEN f.serial END) as consignment_guns
-            FROM customers c
-            LEFT JOIN firearms f ON f.customer_id = c.id
-            GROUP BY c.id ORDER BY c.name ASC
-        """
-        async with db.execute(sql) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.get("/api/customers/{cid}")
-async def get_customer_detail(cid: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM customers WHERE id = ?", (cid,)) as cur:
-            cust = await cur.fetchone()
-            if not cust:
-                raise HTTPException(status_code=404, detail="Customer not found")
-        async with db.execute("""
-            SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name
-            FROM firearms f
-            LEFT JOIN locations l ON f.current_location_id = l.id
-            WHERE f.customer_id = ?
-            ORDER BY f.status, f.last_scanned_at DESC
-        """, (cid,)) as cur_g:
-            guns = [dict(r) for r in await cur_g.fetchall()]
-        data = dict(cust)
-        data["firearms"] = guns
-        return data
-
-@app.post("/api/customers")
-async def save_customer(c: CustomerModel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        if c.id:
-            await db.execute("""
-                UPDATE customers SET name=?, business_name=?, phone=?, email=?, licence_no=?, address=?, notes=?
-                WHERE id=?
-            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes, c.id))
-            cid = c.id
-        else:
-            cur = await db.execute("""
-                INSERT INTO customers (name, business_name, phone, email, licence_no, address, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes))
-            cid = cur.lastrowid
-        await db.commit()
-    return {"status": "success", "id": cid}
-
-# --- Supplier Directory Routes ---
-@app.get("/api/suppliers")
-async def get_suppliers():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM suppliers ORDER BY company_name ASC") as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.post("/api/suppliers")
-async def save_supplier(s: SupplierModel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        if s.id:
-            await db.execute("""
-                UPDATE suppliers SET company_name=?, account_number=?, rep_name=?, rep_phone=?, order_email=?, payment_terms=?, notes=?
-                WHERE id=?
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes, s.id))
-        else:
-            await db.execute("""
-                INSERT INTO suppliers (company_name, account_number, rep_name, rep_phone, order_email, payment_terms, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes))
-        await db.commit()
-    return {"status": "success"}
-
-@app.delete("/api/suppliers/{sid}")
-async def delete_supplier(sid: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM suppliers WHERE id = ?", (sid,))
-        await db.commit()
-    return {"status": "success"}
-
-# --- Firearms & Scan Operations ---
+# --- Root & Settings ---
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"settings": load_config()})
@@ -503,6 +285,120 @@ async def update_settings(payload: SettingsUpdateModel):
     save_config(cfg)
     return {"status": "success", "settings": cfg}
 
+# --- Global Search ---
+@app.get("/api/search")
+async def global_search(q: str = Query(...)):
+    term = f"%{q.strip().upper()}%"
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT f.serial, f.sku, f.make, f.model, f.calibre, f.rego_no, f.storage_type,
+                   COALESCE(l.name, f.current_location_id) as location_name
+            FROM firearms f
+            LEFT JOIN locations l ON f.current_location_id = l.id
+            WHERE UPPER(f.serial) LIKE ? OR UPPER(f.sku) LIKE ? OR UPPER(f.rego_no) LIKE ? 
+               OR UPPER(f.book_no) LIKE ? OR UPPER(f.make) LIKE ? OR UPPER(f.model) LIKE ? 
+               OR UPPER(f.consignor_name) LIKE ?
+            LIMIT 8
+        """, (term, term, term, term, term, term, term)) as cur_g:
+            guns = [dict(r) for r in await cur_g.fetchall()]
+
+        async with db.execute("""
+            SELECT id, name, business_name, phone, licence_no 
+            FROM customers 
+            WHERE UPPER(name) LIKE ? OR UPPER(business_name) LIKE ? OR phone LIKE ? OR UPPER(licence_no) LIKE ?
+            LIMIT 5
+        """, (term, term, term, term)) as cur_c:
+            customers = [dict(r) for r in await cur_c.fetchall()]
+
+        async with db.execute("""
+            SELECT id, name, category, color, max_capacity 
+            FROM locations 
+            WHERE UPPER(id) LIKE ? OR UPPER(name) LIKE ?
+            LIMIT 4
+        """, (term, term)) as cur_l:
+            safes = [dict(r) for r in await cur_l.fetchall()]
+
+    return {"firearms": guns, "customers": customers, "safes": safes}
+
+# --- Phase 1: Bulk Move, Mass Migrate, Closing Sweep & Audit ---
+@app.post("/api/firearms/bulk-move")
+async def bulk_move_firearms(payload: BulkMovePayload):
+    loc_id = payload.target_location_id.replace("LOC:", "").strip().upper()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (loc_id,)) as cur_l:
+            loc = await cur_l.fetchone()
+            if not loc:
+                raise HTTPException(status_code=404, detail=f"Target safe '{loc_id}' is not registered.")
+
+        for s in payload.serials:
+            norm_s = normalize_serial(s)
+            async with db.execute("SELECT current_location_id FROM firearms WHERE UPPER(serial) = ?", (norm_s,)) as cur_g:
+                gun = await cur_g.fetchone()
+                from_loc = gun["current_location_id"] if gun else "UNASSIGNED"
+
+            await db.execute("""
+                UPDATE firearms 
+                SET current_location_id = ?, status = 'In Store', last_scanned_at = CURRENT_TIMESTAMP
+                WHERE UPPER(serial) = ?
+            """, (loc["id"], norm_s))
+
+            await db.execute("""
+                INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
+                VALUES (?, ?, ?, ?, 'Multi-Gun Bulk Allocation')
+            """, (norm_s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
+
+        await db.commit()
+    return {"status": "success", "count": len(payload.serials), "moved_to": loc["name"]}
+
+@app.post("/api/locations/{from_id}/migrate-all")
+async def mass_migrate_safe(from_id: str, payload: MassMigratePayload):
+    from_loc = from_id.strip().upper()
+    target_loc = payload.target_location_id.replace("LOC:", "").strip().upper()
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (target_loc,)) as cur_l:
+            loc = await cur_l.fetchone()
+            if not loc:
+                raise HTTPException(status_code=404, detail=f"Destination safe '{target_loc}' is not registered.")
+
+        async with db.execute("SELECT serial FROM firearms WHERE UPPER(current_location_id) = ? AND status = 'In Store'", (from_loc,)) as cur_items:
+            serials = [r["serial"] for r in await cur_items.fetchall()]
+
+        if not serials:
+            return {"status": "no_op", "count": 0, "message": "No active firearms in source safe."}
+
+        for s in serials:
+            await db.execute("""
+                UPDATE firearms 
+                SET current_location_id = ?, status = 'In Store', last_scanned_at = CURRENT_TIMESTAMP 
+                WHERE serial = ?
+            """, (loc["id"], s))
+            await db.execute("""
+                INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
+                VALUES (?, ?, ?, ?, 'Mass Safe Transfer')
+            """, (s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
+
+        await db.commit()
+    return {"status": "success", "count": len(serials), "moved_to": loc["name"]}
+
+@app.get("/api/closing-sweep")
+async def get_closing_sweep():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        sql = """
+            SELECT f.*, l.name as location_name, l.category as location_category
+            FROM firearms f
+            JOIN locations l ON f.current_location_id = l.id
+            WHERE l.category IN ('Display', 'Workshop') AND f.status = 'In Store'
+            ORDER BY l.name, f.make
+        """
+        async with db.execute(sql) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+# --- Core Scan & Move Routes ---
 @app.post("/api/scan")
 async def handle_scan(barcode: str = Form(...)):
     raw = barcode.strip().upper()
@@ -566,6 +462,57 @@ async def allocate_scan(payload: QuickMovePayload):
         await db.commit()
         return {"status": "success", "serial": norm_s, "moved_to": loc["name"], "location_id": loc["id"]}
 
+# --- Locations, Firearms, Customers & Suppliers ---
+@app.get("/api/locations")
+async def get_locations():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        sql = """
+            SELECT l.*, COUNT(f.serial) as current_count 
+            FROM locations l 
+            LEFT JOIN firearms f ON f.current_location_id = l.id AND f.status = 'In Store' 
+            GROUP BY l.id ORDER BY l.category, l.id
+        """
+        async with db.execute(sql) as cur:
+            rows = [dict(r) for r in await cur.fetchall()]
+            for r in rows:
+                cap = r["max_capacity"]
+                cur_cnt = r["current_count"]
+                r["percent_full"] = round((cur_cnt / cap) * 100) if cap > 0 else 0
+            return rows
+
+@app.post("/api/locations")
+async def save_location(loc: LocationModel):
+    lid = loc.id.strip().upper()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO locations (id, name, category, max_capacity, color, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                category = excluded.category,
+                max_capacity = excluded.max_capacity,
+                color = excluded.color,
+                notes = excluded.notes
+        """, (lid, loc.name.strip(), loc.category, loc.max_capacity, loc.color, loc.notes or ""))
+        await db.commit()
+    return {"status": "success", "id": lid}
+
+@app.get("/api/locations/{loc_id}/firearms")
+async def get_safe_contents(loc_id: str):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        sql = """
+            SELECT f.*, COALESCE(c.name, f.consignor_name, '') as customer_name,
+                   COALESCE(c.phone, f.consignor_phone, '') as customer_phone
+            FROM firearms f
+            LEFT JOIN customers c ON f.customer_id = c.id
+            WHERE UPPER(f.current_location_id) = ? AND f.status = 'In Store'
+            ORDER BY f.last_scanned_at DESC
+        """
+        async with db.execute(sql, (loc_id.strip().upper(),)) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
 @app.get("/api/firearms")
 async def get_firearms(search: Optional[str] = None, location_id: Optional[str] = None, storage_type: Optional[str] = None):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -622,8 +569,8 @@ async def save_firearm(gun: FirearmModel):
     owner_phone = gun.consignor_phone.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
 
     async with aiosqlite.connect(DB_PATH) as db:
-        cust_id = gun.customer_id
-        if owner_name and not cust_id:
+        cust_id = None
+        if owner_name:
             async with db.execute("SELECT id FROM customers WHERE name = ?", (owner_name,)) as cur_c:
                 row = await cur_c.fetchone()
                 if row:
@@ -636,14 +583,14 @@ async def save_firearm(gun: FirearmModel):
             INSERT OR REPLACE INTO firearms (
                 serial, sku, rego_no, book_no, item_type, make, model, calibre,
                 action, barrel, shot_capacity, category, condition, storage_type,
-                layby_step, customer_id, consignor_name, consignor_phone,
+                customer_id, consignor_name, consignor_phone,
                 price, was_price, status, current_location_id, notes, printed_notes, last_scanned_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
         """, (
             norm_s, final_sku, gun.rego_no or "", gun.book_no or "", gun.item_type or "Firearm",
             gun.make.strip(), gun.model.strip(), gun.calibre.strip() or "N/A", gun.action or "",
             gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat A/B", gun.condition or "New",
-            gun.storage_type or "Sale", gun.layby_step or "", cust_id, owner_name, owner_phone,
+            gun.storage_type or "Sale", cust_id, owner_name, owner_phone,
             gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or ""
         ))
         await db.commit()
@@ -655,6 +602,101 @@ async def delete_firearm(serial: str):
         await db.execute("DELETE FROM firearms WHERE UPPER(serial) = ?", (normalize_serial(serial),))
         await db.commit()
     return {"status": "success"}
+
+@app.get("/api/customers")
+async def get_customers():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        sql = """
+            SELECT c.*, 
+                   COUNT(CASE WHEN f.status = 'In Store' THEN f.serial END) as active_guns,
+                   COUNT(CASE WHEN f.storage_type = 'Customer Storage' AND f.status = 'In Store' THEN f.serial END) as storage_guns,
+                   COUNT(CASE WHEN f.storage_type = 'Consignment Sale' AND f.status = 'In Store' THEN f.serial END) as consignment_guns
+            FROM customers c
+            LEFT JOIN firearms f ON f.customer_id = c.id
+            GROUP BY c.id ORDER BY c.name ASC
+        """
+        async with db.execute(sql) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+@app.get("/api/customers/{cid}")
+async def get_customer_detail(cid: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM customers WHERE id = ?", (cid,)) as cur:
+            cust = await cur.fetchone()
+            if not cust:
+                raise HTTPException(status_code=404, detail="Customer not found")
+        async with db.execute("""
+            SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name
+            FROM firearms f
+            LEFT JOIN locations l ON f.current_location_id = l.id
+            WHERE f.customer_id = ?
+            ORDER BY f.status, f.last_scanned_at DESC
+        """, (cid,)) as cur_g:
+            guns = [dict(r) for r in await cur_g.fetchall()]
+        data = dict(cust)
+        data["firearms"] = guns
+        return data
+
+@app.post("/api/customers")
+async def save_customer(c: CustomerModel):
+    async with aiosqlite.connect(DB_PATH) as db:
+        if c.id:
+            await db.execute("""
+                UPDATE customers SET name=?, business_name=?, phone=?, email=?, licence_no=?, address=?, notes=?
+                WHERE id=?
+            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes, c.id))
+            cid = c.id
+        else:
+            cur = await db.execute("""
+                INSERT INTO customers (name, business_name, phone, email, licence_no, address, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes))
+            cid = cur.lastrowid
+        await db.commit()
+    return {"status": "success", "id": cid}
+
+@app.get("/api/suppliers")
+async def get_suppliers():
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM suppliers ORDER BY company_name ASC") as cur:
+            return [dict(r) for r in await cur.fetchall()]
+
+@app.post("/api/suppliers")
+async def save_supplier(s: SupplierModel):
+    async with aiosqlite.connect(DB_PATH) as db:
+        if s.id:
+            await db.execute("""
+                UPDATE suppliers SET company_name=?, account_number=?, rep_name=?, rep_phone=?, order_email=?, payment_terms=?, notes=?
+                WHERE id=?
+            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes, s.id))
+        else:
+            await db.execute("""
+                INSERT INTO suppliers (company_name, account_number, rep_name, rep_phone, order_email, payment_terms, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes))
+        await db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/suppliers/{sid}")
+async def delete_supplier(sid: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM suppliers WHERE id = ?", (sid,))
+        await db.commit()
+    return {"status": "success"}
+
+@app.post("/api/auth/pin-login")
+async def pin_login(payload: PinLoginPayload):
+    pin = payload.pin.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT id, username, full_name, role, badge_code FROM users WHERE pin = ? AND is_active = 1", (pin,)) as cur:
+            user = await cur.fetchone()
+            if not user:
+                raise HTTPException(status_code=401, detail="Invalid PIN code")
+            return {"status": "success", "user": dict(user)}
 
 if __name__ == "__main__":
     import uvicorn
