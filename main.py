@@ -33,14 +33,7 @@ DEFAULT_CONFIG = {
     "default_label_profile": "62mm",
     "theme": "dark",
     "barcode_preference": "serial",
-    "auto_enter_scanner": True,
-    "features": {
-        "special_orders": True,
-        "suppliers": True,
-        "customers": True,
-        "closing_sweep": True,
-        "safe_audit": True
-    }
+    "auto_enter_scanner": True
 }
 
 def load_config() -> Dict[str, Any]:
@@ -97,18 +90,6 @@ CREATE TABLE IF NOT EXISTS customers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS suppliers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company_name TEXT NOT NULL UNIQUE,
-    account_number TEXT DEFAULT '',
-    rep_name TEXT DEFAULT '',
-    rep_phone TEXT DEFAULT '',
-    order_email TEXT DEFAULT '',
-    payment_terms TEXT DEFAULT '30 Days Net',
-    notes TEXT DEFAULT '',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS firearms (
     serial TEXT PRIMARY KEY,
     sku TEXT,
@@ -121,8 +102,9 @@ CREATE TABLE IF NOT EXISTS firearms (
     action TEXT DEFAULT '',
     barrel TEXT DEFAULT '',
     shot_capacity TEXT DEFAULT '',
-    category TEXT NOT NULL DEFAULT 'Cat A/B',
-    condition TEXT DEFAULT 'New',
+    category TEXT NOT NULL DEFAULT 'Cat B',
+    condition TEXT DEFAULT 'Used',
+    condition_report TEXT DEFAULT '',
     storage_type TEXT DEFAULT 'Sale',
     layby_step TEXT DEFAULT '',
     customer_id INTEGER,
@@ -165,12 +147,32 @@ DEFAULT_LOCATIONS = [
 def normalize_serial(s: str) -> str:
     return s.strip().upper() if s else ""
 
+async def ensure_columns(db: aiosqlite.Connection):
+    cols = [
+        ("firearms", "condition_report", "TEXT DEFAULT ''"),
+        ("firearms", "barrel", "TEXT DEFAULT ''"),
+        ("firearms", "shot_capacity", "TEXT DEFAULT ''"),
+        ("firearms", "printed_notes", "TEXT DEFAULT ''"),
+        ("firearms", "was_price", "REAL DEFAULT 0.0"),
+        ("locations", "color", "TEXT DEFAULT '#0284c7'")
+    ]
+    for tbl, col, ctype in cols:
+        async with db.execute(f"PRAGMA table_info({tbl})") as cur:
+            existing = [r[1] for r in await cur.fetchall()]
+            if col not in existing:
+                try:
+                    await db.execute(f"ALTER TABLE {tbl} ADD COLUMN {col} {ctype}")
+                    await db.commit()
+                except Exception:
+                    pass
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(SCHEMA_SQL)
+        await ensure_columns(db)
         for loc in DEFAULT_LOCATIONS:
             await db.execute("""
                 INSERT OR IGNORE INTO locations (id, name, category, max_capacity, color, notes)
@@ -190,10 +192,10 @@ async def lifespan(app: FastAPI):
         await db.commit()
     yield
 
-app = FastAPI(title="CyanStock", version="0.14.2", lifespan=lifespan)
+app = FastAPI(title="CyanStock", version="0.14.3", lifespan=lifespan)
 app.mount("/static/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
-# Pydantic Models
+# Pydantic Schemas
 class LocationModel(BaseModel):
     id: str
     name: str
@@ -212,10 +214,6 @@ class QuickMovePayload(BaseModel):
 
 class BulkMovePayload(BaseModel):
     serials: List[str]
-    target_location_id: str
-    operator_name: Optional[str] = "Duty Staff"
-
-class MassMigratePayload(BaseModel):
     target_location_id: str
     operator_name: Optional[str] = "Duty Staff"
 
@@ -241,9 +239,11 @@ class FirearmModel(BaseModel):
     action: Optional[str] = ""
     barrel: Optional[str] = ""
     shot_capacity: Optional[str] = ""
-    category: Optional[str] = "Cat A/B"
-    condition: Optional[str] = "New"
+    category: Optional[str] = "Cat B"
+    condition: Optional[str] = "Used"
+    condition_report: Optional[str] = ""
     storage_type: Optional[str] = "Sale"
+    layby_step: Optional[str] = ""
     consignor_name: Optional[str] = ""
     consignor_phone: Optional[str] = ""
     price: Optional[float] = 0.0
@@ -252,24 +252,18 @@ class FirearmModel(BaseModel):
     printed_notes: Optional[str] = ""
     notes: Optional[str] = ""
 
-class SupplierModel(BaseModel):
-    id: Optional[int] = None
-    company_name: str
-    account_number: Optional[str] = ""
-    rep_name: Optional[str] = ""
-    rep_phone: Optional[str] = ""
-    order_email: Optional[str] = ""
-    payment_terms: Optional[str] = "30 Days Net"
-    notes: Optional[str] = ""
-
 class SettingsUpdateModel(BaseModel):
     store_name: str
     store_licence: str
+    store_address: Optional[str] = ""
+    store_phone: Optional[str] = ""
+    store_email: Optional[str] = ""
+    default_label_profile: Optional[str] = "62mm"
     theme: Optional[str] = "dark"
     barcode_preference: Optional[str] = "serial"
     auto_enter_scanner: Optional[bool] = True
 
-# --- Root & Settings ---
+# App Routes
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"settings": load_config()})
@@ -285,7 +279,6 @@ async def update_settings(payload: SettingsUpdateModel):
     save_config(cfg)
     return {"status": "success", "settings": cfg}
 
-# --- Global Search ---
 @app.get("/api/search")
 async def global_search(q: str = Query(...)):
     term = f"%{q.strip().upper()}%"
@@ -321,84 +314,6 @@ async def global_search(q: str = Query(...)):
 
     return {"firearms": guns, "customers": customers, "safes": safes}
 
-# --- Phase 1: Bulk Move, Mass Migrate, Closing Sweep & Audit ---
-@app.post("/api/firearms/bulk-move")
-async def bulk_move_firearms(payload: BulkMovePayload):
-    loc_id = payload.target_location_id.replace("LOC:", "").strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (loc_id,)) as cur_l:
-            loc = await cur_l.fetchone()
-            if not loc:
-                raise HTTPException(status_code=404, detail=f"Target safe '{loc_id}' is not registered.")
-
-        for s in payload.serials:
-            norm_s = normalize_serial(s)
-            async with db.execute("SELECT current_location_id FROM firearms WHERE UPPER(serial) = ?", (norm_s,)) as cur_g:
-                gun = await cur_g.fetchone()
-                from_loc = gun["current_location_id"] if gun else "UNASSIGNED"
-
-            await db.execute("""
-                UPDATE firearms 
-                SET current_location_id = ?, status = 'In Store', last_scanned_at = CURRENT_TIMESTAMP
-                WHERE UPPER(serial) = ?
-            """, (loc["id"], norm_s))
-
-            await db.execute("""
-                INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
-                VALUES (?, ?, ?, ?, 'Multi-Gun Bulk Allocation')
-            """, (norm_s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
-
-        await db.commit()
-    return {"status": "success", "count": len(payload.serials), "moved_to": loc["name"]}
-
-@app.post("/api/locations/{from_id}/migrate-all")
-async def mass_migrate_safe(from_id: str, payload: MassMigratePayload):
-    from_loc = from_id.strip().upper()
-    target_loc = payload.target_location_id.replace("LOC:", "").strip().upper()
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (target_loc,)) as cur_l:
-            loc = await cur_l.fetchone()
-            if not loc:
-                raise HTTPException(status_code=404, detail=f"Destination safe '{target_loc}' is not registered.")
-
-        async with db.execute("SELECT serial FROM firearms WHERE UPPER(current_location_id) = ? AND status = 'In Store'", (from_loc,)) as cur_items:
-            serials = [r["serial"] for r in await cur_items.fetchall()]
-
-        if not serials:
-            return {"status": "no_op", "count": 0, "message": "No active firearms in source safe."}
-
-        for s in serials:
-            await db.execute("""
-                UPDATE firearms 
-                SET current_location_id = ?, status = 'In Store', last_scanned_at = CURRENT_TIMESTAMP 
-                WHERE serial = ?
-            """, (loc["id"], s))
-            await db.execute("""
-                INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
-                VALUES (?, ?, ?, ?, 'Mass Safe Transfer')
-            """, (s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
-
-        await db.commit()
-    return {"status": "success", "count": len(serials), "moved_to": loc["name"]}
-
-@app.get("/api/closing-sweep")
-async def get_closing_sweep():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        sql = """
-            SELECT f.*, l.name as location_name, l.category as location_category
-            FROM firearms f
-            JOIN locations l ON f.current_location_id = l.id
-            WHERE l.category IN ('Display', 'Workshop') AND f.status = 'In Store'
-            ORDER BY l.name, f.make
-        """
-        async with db.execute(sql) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-# --- Core Scan & Move Routes ---
 @app.post("/api/scan")
 async def handle_scan(barcode: str = Form(...)):
     raw = barcode.strip().upper()
@@ -462,7 +377,36 @@ async def allocate_scan(payload: QuickMovePayload):
         await db.commit()
         return {"status": "success", "serial": norm_s, "moved_to": loc["name"], "location_id": loc["id"]}
 
-# --- Locations, Firearms, Customers & Suppliers ---
+@app.post("/api/firearms/bulk-move")
+async def bulk_move_firearms(payload: BulkMovePayload):
+    loc_id = payload.target_location_id.replace("LOC:", "").strip().upper()
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (loc_id,)) as cur_l:
+            loc = await cur_l.fetchone()
+            if not loc:
+                raise HTTPException(status_code=404, detail=f"Target safe '{loc_id}' is not registered.")
+
+        for s in payload.serials:
+            norm_s = normalize_serial(s)
+            async with db.execute("SELECT current_location_id FROM firearms WHERE UPPER(serial) = ?", (norm_s,)) as cur_g:
+                gun = await cur_g.fetchone()
+                from_loc = gun["current_location_id"] if gun else "UNASSIGNED"
+
+            await db.execute("""
+                UPDATE firearms 
+                SET current_location_id = ?, status = 'In Store', last_scanned_at = CURRENT_TIMESTAMP
+                WHERE UPPER(serial) = ?
+            """, (loc["id"], norm_s))
+
+            await db.execute("""
+                INSERT INTO movement_logs (serial, from_location_id, to_location_id, operator, notes)
+                VALUES (?, ?, ?, ?, 'Multi-Gun Bulk Move')
+            """, (norm_s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
+
+        await db.commit()
+    return {"status": "success", "count": len(payload.serials), "moved_to": loc["name"]}
+
 @app.get("/api/locations")
 async def get_locations():
     async with aiosqlite.connect(DB_PATH) as db:
@@ -541,14 +485,14 @@ async def get_firearms(search: Optional[str] = None, location_id: Optional[str] 
         async with db.execute(sql, params) as cur:
             return [dict(r) for r in await cur.fetchall()]
 
-@app.get("/api/firearms/{serial}")
+@app.get("/api/firearms/{serial:path}")
 async def get_firearm_detail(serial: str):
     norm_s = normalize_serial(serial)
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
             SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name, l.color as location_color,
-                   c.name as customer_db_name, c.phone as customer_db_phone, c.licence_no as customer_licence
+                   c.id as customer_id, c.name as customer_db_name, c.phone as customer_db_phone, c.licence_no as customer_licence
             FROM firearms f
             LEFT JOIN locations l ON f.current_location_id = l.id
             LEFT JOIN customers c ON f.customer_id = c.id
@@ -582,24 +526,25 @@ async def save_firearm(gun: FirearmModel):
         await db.execute("""
             INSERT OR REPLACE INTO firearms (
                 serial, sku, rego_no, book_no, item_type, make, model, calibre,
-                action, barrel, shot_capacity, category, condition, storage_type,
+                action, barrel, shot_capacity, category, condition, condition_report, storage_type,
                 customer_id, consignor_name, consignor_phone,
                 price, was_price, status, current_location_id, notes, printed_notes, last_scanned_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
         """, (
             norm_s, final_sku, gun.rego_no or "", gun.book_no or "", gun.item_type or "Firearm",
             gun.make.strip(), gun.model.strip(), gun.calibre.strip() or "N/A", gun.action or "",
-            gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat A/B", gun.condition or "New",
-            gun.storage_type or "Sale", cust_id, owner_name, owner_phone,
+            gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat B", gun.condition or "Used",
+            gun.condition_report or "", gun.storage_type or "Sale", cust_id, owner_name, owner_phone,
             gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or ""
         ))
         await db.commit()
     return {"status": "success", "serial": norm_s}
 
-@app.delete("/api/firearms/{serial}")
+@app.delete("/api/firearms/{serial:path}")
 async def delete_firearm(serial: str):
+    norm_s = normalize_serial(serial)
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM firearms WHERE UPPER(serial) = ?", (normalize_serial(serial),))
+        await db.execute("DELETE FROM firearms WHERE UPPER(serial) = ?", (norm_s,))
         await db.commit()
     return {"status": "success"}
 
@@ -656,36 +601,6 @@ async def save_customer(c: CustomerModel):
             cid = cur.lastrowid
         await db.commit()
     return {"status": "success", "id": cid}
-
-@app.get("/api/suppliers")
-async def get_suppliers():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM suppliers ORDER BY company_name ASC") as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.post("/api/suppliers")
-async def save_supplier(s: SupplierModel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        if s.id:
-            await db.execute("""
-                UPDATE suppliers SET company_name=?, account_number=?, rep_name=?, rep_phone=?, order_email=?, payment_terms=?, notes=?
-                WHERE id=?
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes, s.id))
-        else:
-            await db.execute("""
-                INSERT INTO suppliers (company_name, account_number, rep_name, rep_phone, order_email, payment_terms, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (s.company_name.strip(), s.account_number, s.rep_name, s.rep_phone, s.order_email, s.payment_terms, s.notes))
-        await db.commit()
-    return {"status": "success"}
-
-@app.delete("/api/suppliers/{sid}")
-async def delete_supplier(sid: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM suppliers WHERE id = ?", (sid,))
-        await db.commit()
-    return {"status": "success"}
 
 @app.post("/api/auth/pin-login")
 async def pin_login(payload: PinLoginPayload):
