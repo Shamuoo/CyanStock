@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS firearms (
     condition TEXT DEFAULT 'Used',
     condition_report TEXT DEFAULT '',
     storage_type TEXT DEFAULT 'Sale',
+    sending_dealer TEXT DEFAULT '',
     layby_step TEXT DEFAULT '',
     customer_id INTEGER,
     consignor_name TEXT DEFAULT '',
@@ -118,6 +119,7 @@ CREATE TABLE IF NOT EXISTS firearms (
     notes TEXT DEFAULT '',
     printed_notes TEXT DEFAULT '',
     image_url TEXT DEFAULT '',
+    date_acquired TEXT DEFAULT '',
     last_scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (current_location_id) REFERENCES locations(id),
     FOREIGN KEY (customer_id) REFERENCES customers(id)
@@ -159,6 +161,8 @@ async def get_db_connection() -> aiosqlite.Connection:
 
 async def ensure_columns(db: aiosqlite.Connection):
     cols = [
+        ("firearms", "sending_dealer", "TEXT DEFAULT ''"),
+        ("firearms", "date_acquired", "TEXT DEFAULT ''"),
         ("firearms", "condition_report", "TEXT DEFAULT ''"),
         ("firearms", "barrel", "TEXT DEFAULT ''"),
         ("firearms", "shot_capacity", "TEXT DEFAULT ''"),
@@ -205,7 +209,7 @@ async def lifespan(app: FastAPI):
         await db.close()
     yield
 
-app = FastAPI(title="CyanStock", version="0.14.4", lifespan=lifespan)
+app = FastAPI(title="CyanStock", version="0.14.5", lifespan=lifespan)
 app.mount("/static/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 # Pydantic Schemas
@@ -256,6 +260,7 @@ class FirearmModel(BaseModel):
     condition: Optional[str] = "Used"
     condition_report: Optional[str] = ""
     storage_type: Optional[str] = "Sale"
+    sending_dealer: Optional[str] = ""
     layby_step: Optional[str] = ""
     consignor_name: Optional[str] = ""
     consignor_phone: Optional[str] = ""
@@ -264,6 +269,7 @@ class FirearmModel(BaseModel):
     current_location_id: str = "UNASSIGNED"
     printed_notes: Optional[str] = ""
     notes: Optional[str] = ""
+    date_acquired: Optional[str] = ""
 
 class SettingsUpdateModel(BaseModel):
     store_name: str
@@ -306,11 +312,11 @@ async def global_search(q: str = Query(...)):
             LEFT JOIN locations l ON f.current_location_id = l.id
             WHERE UPPER(f.serial) LIKE ? OR UPPER(f.sku) LIKE ? OR UPPER(f.rego_no) LIKE ? 
                OR UPPER(f.book_no) LIKE ? OR UPPER(f.make) LIKE ? OR UPPER(f.model) LIKE ? 
-               OR UPPER(f.consignor_name) LIKE ?
+               OR UPPER(f.consignor_name) LIKE ? OR UPPER(f.sending_dealer) LIKE ?
                OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') LIKE ?
                OR REPLACE(REPLACE(REPLACE(UPPER(f.sku), '-', ''), ' ', ''), '/', '') LIKE ?
             LIMIT 8
-        """, (raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, clean_term, clean_term)) as cur_g:
+        """, (raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, clean_term, clean_term)) as cur_g:
             guns = [dict(r) for r in await cur_g.fetchall()]
 
         async with db.execute("""
@@ -515,12 +521,12 @@ async def get_firearms(search: Optional[str] = None, location_id: Optional[str] 
             clean_s = strip_punctuation(search)
             sql += """ AND (
                 f.serial LIKE ? OR f.sku LIKE ? OR f.make LIKE ? OR f.model LIKE ? 
-                OR f.calibre LIKE ? OR f.rego_no LIKE ? OR c.name LIKE ?
+                OR f.calibre LIKE ? OR f.rego_no LIKE ? OR c.name LIKE ? OR f.sending_dealer LIKE ?
                 OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') LIKE ?
             )"""
             s = f"%{search.strip()}%"
             s_clean = f"%{clean_s}%" if clean_s else s
-            params.extend([s, s, s, s, s, s, s, s_clean])
+            params.extend([s, s, s, s, s, s, s, s, s_clean])
         sql += " ORDER BY f.last_scanned_at DESC"
         async with db.execute(sql, params) as cur:
             return [dict(r) for r in await cur.fetchall()]
@@ -553,9 +559,10 @@ async def save_firearm(gun: FirearmModel):
     norm_s = normalize_serial(gun.serial)
     loc = gun.current_location_id.strip().upper() if gun.current_location_id else "UNASSIGNED"
     final_sku = gun.sku.strip().upper() if gun.sku else norm_s
+    acq_date = gun.date_acquired.strip() if gun.date_acquired else datetime.now().strftime("%d/%m/%Y")
 
-    owner_name = gun.consignor_name.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
-    owner_phone = gun.consignor_phone.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
+    owner_name = gun.consignor_name.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby', 'Interstate Inbound'] else ""
+    owner_phone = gun.consignor_phone.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby', 'Interstate Inbound'] else ""
 
     db = await get_db_connection()
     try:
@@ -572,16 +579,17 @@ async def save_firearm(gun: FirearmModel):
         await db.execute("""
             INSERT OR REPLACE INTO firearms (
                 serial, sku, rego_no, book_no, item_type, make, model, calibre,
-                action, barrel, shot_capacity, category, condition, condition_report, storage_type,
+                action, barrel, shot_capacity, category, condition, condition_report, storage_type, sending_dealer,
                 customer_id, consignor_name, consignor_phone,
-                price, was_price, status, current_location_id, notes, printed_notes, last_scanned_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, CURRENT_TIMESTAMP)
+                price, was_price, status, current_location_id, notes, printed_notes, date_acquired, last_scanned_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'In Store', ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """, (
             norm_s, final_sku, gun.rego_no or "", gun.book_no or "", gun.item_type or "Firearm",
             gun.make.strip(), gun.model.strip(), gun.calibre.strip() or "N/A", gun.action or "",
             gun.barrel or "", gun.shot_capacity or "", gun.category or "Cat B", gun.condition or "Used",
-            gun.condition_report or "", gun.storage_type or "Sale", cust_id, owner_name, owner_phone,
-            gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or ""
+            gun.condition_report or "", gun.storage_type or "Sale", gun.sending_dealer or "",
+            cust_id, owner_name, owner_phone,
+            gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or "", acq_date
         ))
         await db.commit()
         return {"status": "success", "serial": norm_s}
@@ -597,4 +605,87 @@ async def delete_firearm(serial: str):
         await db.execute("""
             DELETE FROM firearms 
             WHERE UPPER(serial) = ? OR REPLACE(REPLACE(REPLACE(UPPER(serial), '-', ''), ' ', ''), '/', '') = ?
-        """, (norm_s,
+        """, (norm_s, clean_s))
+        await db.commit()
+        return {"status": "success"}
+    finally:
+        await db.close()
+
+@app.get("/api/customers")
+async def get_customers():
+    db = await get_db_connection()
+    try:
+        sql = """
+            SELECT c.*, 
+                   COUNT(CASE WHEN f.status = 'In Store' THEN f.serial END) as active_guns,
+                   COUNT(CASE WHEN f.storage_type = 'Customer Storage' AND f.status = 'In Store' THEN f.serial END) as storage_guns,
+                   COUNT(CASE WHEN f.storage_type = 'Consignment Sale' AND f.status = 'In Store' THEN f.serial END) as consignment_guns,
+                   COUNT(CASE WHEN f.storage_type = 'Interstate Inbound' AND f.status = 'In Store' THEN f.serial END) as interstate_guns
+            FROM customers c
+            LEFT JOIN firearms f ON f.customer_id = c.id
+            GROUP BY c.id ORDER BY c.name ASC
+        """
+        async with db.execute(sql) as cur:
+            return [dict(r) for r in await cur.fetchall()]
+    finally:
+        await db.close()
+
+@app.get("/api/customers/{cid}")
+async def get_customer_detail(cid: int):
+    db = await get_db_connection()
+    try:
+        async with db.execute("SELECT * FROM customers WHERE id = ?", (cid,)) as cur:
+            cust = await cur.fetchone()
+            if not cust:
+                raise HTTPException(status_code=404, detail="Customer not found")
+        async with db.execute("""
+            SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name
+            FROM firearms f
+            LEFT JOIN locations l ON f.current_location_id = l.id
+            WHERE f.customer_id = ?
+            ORDER BY f.status, f.last_scanned_at DESC
+        """, (cid,)) as cur_g:
+            guns = [dict(r) for r in await cur_g.fetchall()]
+        data = dict(cust)
+        data["firearms"] = guns
+        return data
+    finally:
+        await db.close()
+
+@app.post("/api/customers")
+async def save_customer(c: CustomerModel):
+    db = await get_db_connection()
+    try:
+        if c.id:
+            await db.execute("""
+                UPDATE customers SET name=?, business_name=?, phone=?, email=?, licence_no=?, address=?, notes=?
+                WHERE id=?
+            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes, c.id))
+            cid = c.id
+        else:
+            cur = await db.execute("""
+                INSERT INTO customers (name, business_name, phone, email, licence_no, address, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes))
+            cid = cur.lastrowid
+        await db.commit()
+        return {"status": "success", "id": cid}
+    finally:
+        await db.close()
+
+@app.post("/api/auth/pin-login")
+async def pin_login(payload: PinLoginPayload):
+    pin = payload.pin.strip()
+    db = await get_db_connection()
+    try:
+        async with db.execute("SELECT id, username, full_name, role, badge_code FROM users WHERE pin = ? AND is_active = 1", (pin,)) as cur:
+            user = await cur.fetchone()
+            if not user:
+                raise HTTPException(status_code=401, detail="Invalid PIN code")
+            return {"status": "success", "user": dict(user)}
+    finally:
+        await db.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8090, reload=True)
