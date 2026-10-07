@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CyanStock v0.14.3 - Store Vault Hub</title>
+<title>CyanStock v0.14.4 - Store Vault Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 <style>
   :root {
@@ -104,7 +104,7 @@
   .plc-barcode-wrap { text-align: center; margin: 2mm 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .plc-spec-strip { display: flex; justify-content: space-between; font-size: 10px; font-weight: 900; border-top: 1.5mm solid #000; padding-top: 3px; }
 
-  /* QLD Interstate Transfer Tag */
+  /* QLD Transfer Tag */
   .qld-transfer-canvas {
     background: #ffffff;
     color: #000000;
@@ -157,7 +157,6 @@
   .modal-overlay.open { display: flex; }
   .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; width: 740px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
 
-  /* Media Print Isolation */
   @media print {
     body * { visibility: hidden !important; }
     
@@ -258,7 +257,7 @@
 
 <header>
   <div style="display:flex; align-items:center; gap:16px;">
-    <div class="brand-title">CyanStock <span class="version-tag">v0.14.3</span></div>
+    <div class="brand-title">CyanStock <span class="version-tag">v0.14.4</span></div>
   </div>
 
   <div class="top-search-wrap">
@@ -289,30 +288,30 @@
 <!-- 1. ARMOURY LEDGER -->
 <main id="tab-armoury" class="active">
   <div class="kpi-strip">
-    <div class="kpi-card" onclick="loadArmoury('')">
+    <div class="kpi-card" onclick="filterByStorage('')">
       <div class="kpi-title">Total In Store</div>
       <div class="kpi-value" id="kpi-total">0</div>
     </div>
-    <div class="kpi-card" onclick="loadArmoury('Sale')">
+    <div class="kpi-card" onclick="filterByStorage('Sale')">
       <div class="kpi-title">Floor Stock (Sale)</div>
       <div class="kpi-value" id="kpi-sale" style="color:var(--accent);">0</div>
     </div>
-    <div class="kpi-card" onclick="loadArmoury('Customer Storage')">
+    <div class="kpi-card" onclick="filterByStorage('Customer Storage')">
       <div class="kpi-title">Customer Storage</div>
       <div class="kpi-value" id="kpi-storage" style="color:#a855f7;">0</div>
     </div>
-    <div class="kpi-card" onclick="loadArmoury('Layby')">
+    <div class="kpi-card" onclick="filterByStorage('Layby')">
       <div class="kpi-title">Active Laybys</div>
       <div class="kpi-value" id="kpi-layby" style="color:var(--warning);">0</div>
     </div>
-    <div class="kpi-card" onclick="loadArmoury('Consignment Sale')">
+    <div class="kpi-card" onclick="filterByStorage('Consignment Sale')">
       <div class="kpi-title">Consignments</div>
       <div class="kpi-value" id="kpi-csg" style="color:var(--success);">0</div>
     </div>
   </div>
 
   <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
-    <input type="text" id="armoury-search" placeholder="Filter view by serial, make, model..." style="padding:10px 14px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; width:360px;" oninput="loadArmoury()">
+    <input type="text" id="armoury-search" placeholder="Filter view by serial, make, model..." style="padding:10px 14px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; width:360px;" oninput="onLedgerSearchInput()">
     <button class="btn" onclick="switchTab('tab-intake')">+ Intake Firearm</button>
   </div>
 
@@ -340,7 +339,7 @@
 <div id="bulk-action-bar" class="bulk-floating-bar">
   <span style="font-weight:900; font-size:0.85rem;" id="bulk-selected-count">0 Firearms Selected</span>
   <select id="bulk-safe-select" style="padding:7px 12px; background:var(--bg-page); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:0.85rem; font-weight:700;"></select>
-  <button class="btn btn-sm" onclick="executeBulkMove()">⚡ Move to Safe</button>
+  <button class="btn btn-sm" onclick="executeBulkMoveWithSafeguard()">⚡ Move to Safe</button>
   <button class="btn btn-outline btn-sm" onclick="clearBulkSelection()">Cancel</button>
 </div>
 
@@ -404,7 +403,7 @@
         <div class="form-grid-2col">
           <div class="form-field">
             <label>Storage Classification</label>
-            <select id="in-storage-type" onchange="handleStorageTypeChange(); renderPreview();">
+            <select id="in-storage-type" onchange="handleStorageTypeChange(); renderPreview(); persistIntakeDefaults();">
               <option value="Sale">Sale (Floor Stock)</option>
               <option value="Customer Storage">Customer Storage</option>
               <option value="Layby">Layby</option>
@@ -413,7 +412,7 @@
           </div>
           <div class="form-field">
             <label>Destination Safe</label>
-            <select id="in-safe"></select>
+            <select id="in-safe" onchange="persistIntakeDefaults();"></select>
           </div>
         </div>
 
@@ -435,7 +434,7 @@
         <div class="form-grid-2col">
           <div class="form-field"><label>Calibre / Gauge *</label><input type="text" id="in-calibre" required oninput="renderPreview()"></div>
           <div class="form-field"><label>Category *</label>
-            <select id="in-cat" onchange="renderPreview()">
+            <select id="in-cat" onchange="renderPreview(); persistIntakeDefaults();">
               <option value="Cat A">Cat A</option>
               <option value="Cat B" selected>Cat B</option>
               <option value="Cat C">Cat C</option>
@@ -449,7 +448,7 @@
         <div class="form-grid-2col">
           <div class="form-field">
             <label>Condition Tag *</label>
-            <select id="in-cond" onchange="renderPreview()">
+            <select id="in-cond" onchange="renderPreview(); persistIntakeDefaults();">
               <option value="New">New</option>
               <option value="Used" selected>Used</option>
               <option value="Custom">Custom</option>
@@ -596,6 +595,7 @@
       </div>
     </div>
 
+    <!-- Linked Customer Dossier Card -->
     <div id="dos-consignor-card" style="display:none; background:rgba(34,197,94,0.1); border:1px solid #22c55e; border-radius:6px; padding:14px; margin-bottom:18px;">
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <span style="font-size:0.75rem; font-weight:800; color:#22c55e; text-transform:uppercase;">Owner / Customer File</span>
@@ -641,6 +641,7 @@
       </div>
     </div>
 
+    <!-- Condition Report Readout -->
     <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px; margin-bottom:20px;">
       <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">CONDITION RATING &amp; REPORT</div>
       <div id="dos-condition-report" style="font-size:0.9rem; font-weight:700; margin-top:4px;">No condition report recorded.</div>
@@ -1004,6 +1005,29 @@ let currentDossierGun = null;
 let activeSafeForPlacard = null;
 let activeQldTransferGun = null;
 let selectedGunSerials = new Set();
+let currentStorageFilter = '';
+let currentSearchQuery = '';
+
+// Offline Barcode Generator Fallback (Pure JS SVG Code 128)
+function renderBarcodeSafely(selector, value, options) {
+  try {
+    if (typeof JsBarcode === "function") {
+      JsBarcode(selector, value, options);
+      return;
+    }
+  } catch (e) {
+    console.warn("JsBarcode failed, falling back to pure SVG generator:", e);
+  }
+  // Fallback simple SVG generator
+  const el = document.querySelector(selector);
+  if (!el) return;
+  const h = options.height || 50;
+  const w = (options.width || 2) * 20;
+  el.innerHTML = `
+    <rect width="100%" height="${h}" fill="#fff"/>
+    <text x="50%" y="${h/2 + 5}" font-family="monospace" font-size="14" font-weight="900" fill="#000" text-anchor="middle">${value}</text>
+  `;
+}
 
 function switchTab(tabId) {
   document.querySelectorAll('main').forEach(m => m.classList.remove('active'));
@@ -1013,10 +1037,11 @@ function switchTab(tabId) {
   const btn = document.querySelector(`[data-tab="${tabId}"]`);
   if (btn) btn.classList.add('active');
 
-  if (tabId === 'tab-armoury') loadArmoury();
+  if (tabId === 'tab-armoury') loadArmoury(currentStorageFilter);
   if (tabId === 'tab-two-scan') resetTwoScan();
   if (tabId === 'tab-safes') loadSafes();
   if (tabId === 'tab-customers') loadCustomers();
+  if (tabId === 'tab-intake') restoreIntakeDefaults();
 }
 
 function toggleTheme() {
@@ -1024,7 +1049,44 @@ function toggleTheme() {
   localStorage.setItem('cyanstock_theme', isLight ? 'light' : 'dark');
 }
 
-// Global Search
+// Global Hardware Barcode Wedge Trap
+let wedgeBuffer = "";
+let lastKeyTime = Date.now();
+window.addEventListener('keydown', (e) => {
+  const activeTag = document.activeElement ? document.activeElement.tagName : '';
+  const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
+  const now = Date.now();
+
+  if (now - lastKeyTime > 120) wedgeBuffer = "";
+  lastKeyTime = now;
+
+  if (e.key === 'Enter') {
+    if (wedgeBuffer.length >= 3 && !isInputFocused) {
+      e.preventDefault();
+      handleGlobalWedgeScan(wedgeBuffer.trim());
+      wedgeBuffer = "";
+    }
+  } else if (e.key.length === 1) {
+    wedgeBuffer += e.key;
+  }
+});
+
+async function handleGlobalWedgeScan(scannedVal) {
+  const f = new FormData();
+  f.append('barcode', scannedVal);
+  const res = await fetch('/api/scan', { method: 'POST', body: f });
+  const data = await res.json();
+  if (data.scan_type === 'firearm_query') {
+    openDossier(data.firearm.serial);
+  } else if (data.scan_type === 'location_locked') {
+    openSafeDrawer(data.location_id);
+  } else {
+    document.getElementById('top-search').value = scannedVal;
+    handleTopSearch();
+  }
+}
+
+// Universal Search
 let searchTimer = null;
 async function handleTopSearch() {
   clearTimeout(searchTimer);
@@ -1071,12 +1133,12 @@ async function handleTopSearch() {
       });
     }
     menu.style.display = has ? 'block' : 'none';
-  }, 150);
+  }, 140);
 }
 function hideSearch() { document.getElementById('search-dropdown-menu').style.display = 'none'; }
 document.addEventListener('click', (e) => { if (!e.target.closest('.top-search-wrap')) hideSearch(); });
 
-// Print Handlers
+// Print Triggers
 function triggerPrintGunLabel() {
   document.body.classList.remove('print-safe-mode', 'print-qld-mode');
   document.body.classList.add('print-gun-mode');
@@ -1090,7 +1152,7 @@ function triggerPrintSafePlacard() {
   document.getElementById('plc-cat').textContent = activeSafeForPlacard.category.toUpperCase();
   document.getElementById('plc-cap').textContent = `CAPACITY: ${activeSafeForPlacard.max_capacity || 'N/A'}`;
 
-  JsBarcode("#plc-barcode", `LOC:${activeSafeForPlacard.id}`, {
+  renderBarcodeSafely("#plc-barcode", `LOC:${activeSafeForPlacard.id}`, {
     format: "CODE128", width: 3.2, height: 85, displayValue: true, fontSize: 16, margin: 0
   });
 
@@ -1145,13 +1207,8 @@ function renderQldTransferTag() {
   document.getElementById('prev-gun-serial').textContent = `SERIAL: ${g.serial}`;
   document.getElementById('prev-gun-book').textContent = `NSW BOOK IN: ${g.book_no || g.rego_no || 'N/A'}`;
 
-  JsBarcode("#prev-qld-barcode", g.serial, {
-    format: "CODE128",
-    width: 2.0,
-    height: 40,
-    displayValue: true,
-    fontSize: 12,
-    margin: 0
+  renderBarcodeSafely("#prev-qld-barcode", g.serial, {
+    format: "CODE128", width: 2.0, height: 40, displayValue: true, fontSize: 12, margin: 0
   });
 }
 
@@ -1163,9 +1220,19 @@ function triggerPrintQldTransferTag() {
   document.body.classList.remove('print-gun-mode', 'print-safe-mode');
   document.body.classList.add('print-qld-mode');
   window.print();
-  setTimeout(() => {
-    document.body.classList.remove('print-qld-mode');
-  }, 1200);
+  setTimeout(() => { document.body.classList.remove('print-qld-mode'); }, 1200);
+}
+
+// Safe Capacity Check Safeguard
+function verifySafeCapacity(targetLocId, incomingCount = 1) {
+  const targetSafe = cachedLocations.find(l => l.id === targetLocId);
+  if (!targetSafe || !targetSafe.max_capacity || targetSafe.max_capacity === 0) return true;
+
+  const projectedTotal = (targetSafe.current_count || 0) + incomingCount;
+  if (projectedTotal > targetSafe.max_capacity) {
+    return confirm(`⚠️ CAPACITY WARNING:\nMoving ${incomingCount} firearm(s) into ${targetSafe.name} will put it at ${projectedTotal}/${targetSafe.max_capacity} capacity (${Math.round((projectedTotal/targetSafe.max_capacity)*100)}%).\n\nProceed with transfer anyway?`);
+  }
+  return true;
 }
 
 // Bulk Selection
@@ -1204,9 +1271,11 @@ function clearBulkSelection() {
   updateBulkToolbar();
 }
 
-async function executeBulkMove() {
+async function executeBulkMoveWithSafeguard() {
   const destSafe = document.getElementById('bulk-safe-select').value;
   if (!destSafe || selectedGunSerials.size === 0) return;
+  if (!verifySafeCapacity(destSafe, selectedGunSerials.size)) return;
+
   const res = await fetch('/api/firearms/bulk-move', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1218,14 +1287,24 @@ async function executeBulkMove() {
   });
   if (res.ok) {
     clearBulkSelection();
-    loadArmoury();
+    loadArmoury(currentStorageFilter);
     loadSafes();
   }
 }
 
-// Armoury Ledger
+// Armoury Ledger Filtering & Search
+function filterByStorage(type) {
+  currentStorageFilter = type;
+  loadArmoury(currentStorageFilter);
+}
+
+function onLedgerSearchInput() {
+  currentSearchQuery = document.getElementById('armoury-search').value;
+  loadArmoury(currentStorageFilter);
+}
+
 async function loadArmoury(storageFilter = '') {
-  const q = document.getElementById('armoury-search')?.value || '';
+  const q = currentSearchQuery || document.getElementById('armoury-search')?.value || '';
   let url = `/api/firearms?search=${encodeURIComponent(q)}`;
   if (storageFilter) url += `&storage_type=${encodeURIComponent(storageFilter)}`;
   const res = await fetch(url);
@@ -1314,6 +1393,8 @@ async function loadSafes() {
     bulkSafe.innerHTML += opt;
     if (eSafe) eSafe.innerHTML += opt;
   });
+
+  restoreIntakeDefaults();
 }
 
 function openAddSafeModal() {
@@ -1422,6 +1503,8 @@ document.getElementById('scan-in-2').addEventListener('keydown', async (e) => {
 
 async function executeAllocation(targetSafe) {
   if (!lockedGun) return;
+  if (!verifySafeCapacity(targetSafe, 1)) return;
+
   const res = await fetch('/api/scan/allocate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1430,7 +1513,7 @@ async function executeAllocation(targetSafe) {
   if (res.ok) {
     resetTwoScan();
     loadSafes();
-    loadArmoury();
+    loadArmoury(currentStorageFilter);
   }
 }
 
@@ -1499,6 +1582,8 @@ function closeReassignModal() {
 
 async function executeDossierReassign(targetSafe) {
   if (!currentDossierGun) return;
+  if (!verifySafeCapacity(targetSafe, 1)) return;
+
   const res = await fetch('/api/scan/allocate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1508,7 +1593,7 @@ async function executeDossierReassign(targetSafe) {
     closeReassignModal();
     openDossier(currentDossierGun.serial);
     loadSafes();
-    loadArmoury();
+    loadArmoury(currentStorageFilter);
   }
 }
 
@@ -1527,7 +1612,7 @@ async function confirmDeleteFirearm() {
   await fetch(`/api/firearms/${encodeURIComponent(currentDossierGun.serial)}`, { method: 'DELETE' });
   closeDeleteModal();
   closeModals();
-  loadArmoury();
+  loadArmoury(currentStorageFilter);
   loadSafes();
 }
 
@@ -1585,7 +1670,7 @@ async function saveEditedGun(e) {
   });
   closeModals();
   openDossier(payload.serial);
-  loadArmoury();
+  loadArmoury(currentStorageFilter);
   loadSafes();
 }
 
@@ -1683,6 +1768,32 @@ async function openCustomerDossier(cid) {
   document.getElementById('customer-dossier-modal').classList.add('open');
 }
 
+// Sticky Form Defaults (Intake QoL)
+function persistIntakeDefaults() {
+  const defaults = {
+    safe: document.getElementById('in-safe').value,
+    cat: document.getElementById('in-cat').value,
+    cond: document.getElementById('in-cond').value,
+    storageType: document.getElementById('in-storage-type').value
+  };
+  localStorage.setItem('cyanstock_intake_defaults', JSON.stringify(defaults));
+}
+
+function restoreIntakeDefaults() {
+  try {
+    const raw = localStorage.getItem('cyanstock_intake_defaults');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.safe && document.getElementById('in-safe')) document.getElementById('in-safe').value = d.safe;
+    if (d.cat && document.getElementById('in-cat')) document.getElementById('in-cat').value = d.cat;
+    if (d.cond && document.getElementById('in-cond')) document.getElementById('in-cond').value = d.cond;
+    if (d.storageType && document.getElementById('in-storage-type')) {
+      document.getElementById('in-storage-type').value = d.storageType;
+      handleStorageTypeChange();
+    }
+  } catch(e) {}
+}
+
 // Intake Studio
 function handleStorageTypeChange() {
   const type = document.getElementById('in-storage-type').value;
@@ -1737,13 +1848,16 @@ function renderPreview() {
   } else wasElem.style.display = 'none';
 
   const barcodeVal = activeSettings.barcode_preference === 'sku' ? (sku || serial) : (serial || sku);
-  JsBarcode("#tag-barcode-svg", barcodeVal, {
+  renderBarcodeSafely("#tag-barcode-svg", barcodeVal, {
     format: "CODE128", width: 2.2, height: 52, displayValue: true, fontSize: 14, margin: 0
   });
 }
 
 async function saveIntakeRecord(e) {
   e.preventDefault();
+  const destSafe = document.getElementById('in-safe').value;
+  if (!verifySafeCapacity(destSafe, 1)) return;
+
   const payload = {
     serial: document.getElementById('in-serial').value.trim(),
     sku: document.getElementById('in-sku').value.trim(),
@@ -1758,7 +1872,7 @@ async function saveIntakeRecord(e) {
     condition: document.getElementById('in-cond').value,
     condition_report: document.getElementById('in-cond-report').value.trim(),
     storage_type: document.getElementById('in-storage-type').value,
-    current_location_id: document.getElementById('in-safe').value,
+    current_location_id: destSafe,
     price: parseFloat(document.getElementById('in-price').value) || 0.0,
     was_price: parseFloat(document.getElementById('in-was').value) || 0.0,
     consignor_name: document.getElementById('in-owner').value.trim(),
@@ -1766,8 +1880,15 @@ async function saveIntakeRecord(e) {
     printed_notes: document.getElementById('in-printnotes').value.trim()
   };
   await fetch('/api/firearms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  persistIntakeDefaults();
   alert("Firearm record saved cleanly.");
-  loadArmoury();
+  document.getElementById('in-serial').value = '';
+  document.getElementById('in-sku').value = '';
+  document.getElementById('in-rego').value = '';
+  document.getElementById('in-book').value = '';
+  document.getElementById('in-model').value = '';
+  renderPreview();
+  loadArmoury(currentStorageFilter);
   loadSafes();
 }
 
