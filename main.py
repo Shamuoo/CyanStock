@@ -147,6 +147,16 @@ DEFAULT_LOCATIONS = [
 def normalize_serial(s: str) -> str:
     return s.strip().upper() if s else ""
 
+def strip_punctuation(s: str) -> str:
+    return re.sub(r'[^A-Z0-9]', '', s.upper()) if s else ""
+
+async def get_db_connection() -> aiosqlite.Connection:
+    db = await aiosqlite.connect(DB_PATH)
+    await db.execute("PRAGMA journal_mode=WAL;")
+    await db.execute("PRAGMA busy_timeout=5000;")
+    db.row_factory = aiosqlite.Row
+    return db
+
 async def ensure_columns(db: aiosqlite.Connection):
     cols = [
         ("firearms", "condition_report", "TEXT DEFAULT ''"),
@@ -170,7 +180,8 @@ async def ensure_columns(db: aiosqlite.Connection):
 async def lifespan(app: FastAPI):
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)
-    async with aiosqlite.connect(DB_PATH) as db:
+    db = await get_db_connection()
+    try:
         await db.executescript(SCHEMA_SQL)
         await ensure_columns(db)
         for loc in DEFAULT_LOCATIONS:
@@ -190,9 +201,11 @@ async def lifespan(app: FastAPI):
                     VALUES ('counter1', 'Duty Staff', '1234', 'Employee', 'STF:STAFF-01')
                 """)
         await db.commit()
+    finally:
+        await db.close()
     yield
 
-app = FastAPI(title="CyanStock", version="0.14.3", lifespan=lifespan)
+app = FastAPI(title="CyanStock", version="0.14.4", lifespan=lifespan)
 app.mount("/static/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 # Pydantic Schemas
@@ -263,7 +276,6 @@ class SettingsUpdateModel(BaseModel):
     barcode_preference: Optional[str] = "serial"
     auto_enter_scanner: Optional[bool] = True
 
-# App Routes
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     return templates.TemplateResponse(request=request, name="index.html", context={"settings": load_config()})
@@ -281,9 +293,12 @@ async def update_settings(payload: SettingsUpdateModel):
 
 @app.get("/api/search")
 async def global_search(q: str = Query(...)):
-    term = f"%{q.strip().upper()}%"
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    raw_term = f"%{q.strip().upper()}%"
+    clean_q = strip_punctuation(q)
+    clean_term = f"%{clean_q}%" if clean_q else raw_term
+
+    db = await get_db_connection()
+    try:
         async with db.execute("""
             SELECT f.serial, f.sku, f.make, f.model, f.calibre, f.rego_no, f.storage_type,
                    COALESCE(l.name, f.current_location_id) as location_name
@@ -292,8 +307,10 @@ async def global_search(q: str = Query(...)):
             WHERE UPPER(f.serial) LIKE ? OR UPPER(f.sku) LIKE ? OR UPPER(f.rego_no) LIKE ? 
                OR UPPER(f.book_no) LIKE ? OR UPPER(f.make) LIKE ? OR UPPER(f.model) LIKE ? 
                OR UPPER(f.consignor_name) LIKE ?
+               OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') LIKE ?
+               OR REPLACE(REPLACE(REPLACE(UPPER(f.sku), '-', ''), ' ', ''), '/', '') LIKE ?
             LIMIT 8
-        """, (term, term, term, term, term, term, term)) as cur_g:
+        """, (raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, raw_term, clean_term, clean_term)) as cur_g:
             guns = [dict(r) for r in await cur_g.fetchall()]
 
         async with db.execute("""
@@ -301,7 +318,7 @@ async def global_search(q: str = Query(...)):
             FROM customers 
             WHERE UPPER(name) LIKE ? OR UPPER(business_name) LIKE ? OR phone LIKE ? OR UPPER(licence_no) LIKE ?
             LIMIT 5
-        """, (term, term, term, term)) as cur_c:
+        """, (raw_term, raw_term, raw_term, raw_term)) as cur_c:
             customers = [dict(r) for r in await cur_c.fetchall()]
 
         async with db.execute("""
@@ -309,17 +326,19 @@ async def global_search(q: str = Query(...)):
             FROM locations 
             WHERE UPPER(id) LIKE ? OR UPPER(name) LIKE ?
             LIMIT 4
-        """, (term, term)) as cur_l:
+        """, (raw_term, raw_term)) as cur_l:
             safes = [dict(r) for r in await cur_l.fetchall()]
 
-    return {"firearms": guns, "customers": customers, "safes": safes}
+        return {"firearms": guns, "customers": customers, "safes": safes}
+    finally:
+        await db.close()
 
 @app.post("/api/scan")
 async def handle_scan(barcode: str = Form(...)):
     raw = barcode.strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-
+    clean = strip_punctuation(raw)
+    db = await get_db_connection()
+    try:
         if raw.startswith("STF:"):
             async with db.execute("SELECT id, username, full_name, role FROM users WHERE UPPER(badge_code) = ? AND is_active = 1", (raw,)) as cur_b:
                 staff = await cur_b.fetchone()
@@ -339,20 +358,24 @@ async def handle_scan(barcode: str = Form(...)):
             LEFT JOIN locations l ON f.current_location_id = l.id
             LEFT JOIN customers c ON f.customer_id = c.id
             WHERE UPPER(f.serial) = ? OR UPPER(f.sku) = ? OR UPPER(f.rego_no) = ? OR UPPER(f.book_no) = ?
-        """, (raw, raw, raw, raw)) as cur:
+               OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') = ?
+               OR REPLACE(REPLACE(REPLACE(UPPER(f.sku), '-', ''), ' ', ''), '/', '') = ?
+        """, (raw, raw, raw, raw, clean, clean)) as cur:
             gun = await cur.fetchone()
             if gun:
                 return {"scan_type": "firearm_query", "firearm": dict(gun)}
 
         return {"scan_type": "not_found", "scanned_value": raw}
+    finally:
+        await db.close()
 
 @app.post("/api/scan/allocate")
 async def allocate_scan(payload: QuickMovePayload):
     norm_s = normalize_serial(payload.serial)
     loc_id = payload.target_location_id.replace("LOC:", "").strip().upper()
 
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db_connection()
+    try:
         async with db.execute("SELECT serial, current_location_id FROM firearms WHERE UPPER(serial) = ?", (norm_s,)) as cur:
             gun = await cur.fetchone()
             if not gun:
@@ -376,12 +399,14 @@ async def allocate_scan(payload: QuickMovePayload):
 
         await db.commit()
         return {"status": "success", "serial": norm_s, "moved_to": loc["name"], "location_id": loc["id"]}
+    finally:
+        await db.close()
 
 @app.post("/api/firearms/bulk-move")
 async def bulk_move_firearms(payload: BulkMovePayload):
     loc_id = payload.target_location_id.replace("LOC:", "").strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db_connection()
+    try:
         async with db.execute("SELECT id, name FROM locations WHERE UPPER(id) = ?", (loc_id,)) as cur_l:
             loc = await cur_l.fetchone()
             if not loc:
@@ -405,12 +430,14 @@ async def bulk_move_firearms(payload: BulkMovePayload):
             """, (norm_s, from_loc, loc["id"], payload.operator_name or "Duty Staff"))
 
         await db.commit()
-    return {"status": "success", "count": len(payload.serials), "moved_to": loc["name"]}
+        return {"status": "success", "count": len(payload.serials), "moved_to": loc["name"]}
+    finally:
+        await db.close()
 
 @app.get("/api/locations")
 async def get_locations():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db_connection()
+    try:
         sql = """
             SELECT l.*, COUNT(f.serial) as current_count 
             FROM locations l 
@@ -424,11 +451,14 @@ async def get_locations():
                 cur_cnt = r["current_count"]
                 r["percent_full"] = round((cur_cnt / cap) * 100) if cap > 0 else 0
             return rows
+    finally:
+        await db.close()
 
 @app.post("/api/locations")
 async def save_location(loc: LocationModel):
     lid = loc.id.strip().upper()
-    async with aiosqlite.connect(DB_PATH) as db:
+    db = await get_db_connection()
+    try:
         await db.execute("""
             INSERT INTO locations (id, name, category, max_capacity, color, notes)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -440,12 +470,14 @@ async def save_location(loc: LocationModel):
                 notes = excluded.notes
         """, (lid, loc.name.strip(), loc.category, loc.max_capacity, loc.color, loc.notes or ""))
         await db.commit()
-    return {"status": "success", "id": lid}
+        return {"status": "success", "id": lid}
+    finally:
+        await db.close()
 
 @app.get("/api/locations/{loc_id}/firearms")
 async def get_safe_contents(loc_id: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db_connection()
+    try:
         sql = """
             SELECT f.*, COALESCE(c.name, f.consignor_name, '') as customer_name,
                    COALESCE(c.phone, f.consignor_phone, '') as customer_phone
@@ -456,11 +488,13 @@ async def get_safe_contents(loc_id: str):
         """
         async with db.execute(sql, (loc_id.strip().upper(),)) as cur:
             return [dict(r) for r in await cur.fetchall()]
+    finally:
+        await db.close()
 
 @app.get("/api/firearms")
 async def get_firearms(search: Optional[str] = None, location_id: Optional[str] = None, storage_type: Optional[str] = None):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db_connection()
+    try:
         sql = """
             SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name, l.color as location_color,
                    COALESCE(c.name, f.consignor_name, '') as customer_name,
@@ -478,30 +512,41 @@ async def get_firearms(search: Optional[str] = None, location_id: Optional[str] 
             sql += " AND f.storage_type = ?"
             params.append(storage_type)
         if search:
-            sql += " AND (f.serial LIKE ? OR f.sku LIKE ? OR f.make LIKE ? OR f.model LIKE ? OR f.calibre LIKE ? OR f.rego_no LIKE ? OR c.name LIKE ?)"
+            clean_s = strip_punctuation(search)
+            sql += """ AND (
+                f.serial LIKE ? OR f.sku LIKE ? OR f.make LIKE ? OR f.model LIKE ? 
+                OR f.calibre LIKE ? OR f.rego_no LIKE ? OR c.name LIKE ?
+                OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') LIKE ?
+            )"""
             s = f"%{search.strip()}%"
-            params.extend([s, s, s, s, s, s, s])
+            s_clean = f"%{clean_s}%" if clean_s else s
+            params.extend([s, s, s, s, s, s, s, s_clean])
         sql += " ORDER BY f.last_scanned_at DESC"
         async with db.execute(sql, params) as cur:
             return [dict(r) for r in await cur.fetchall()]
+    finally:
+        await db.close()
 
 @app.get("/api/firearms/{serial:path}")
 async def get_firearm_detail(serial: str):
     norm_s = normalize_serial(serial)
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
+    clean_s = strip_punctuation(norm_s)
+    db = await get_db_connection()
+    try:
         async with db.execute("""
             SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name, l.color as location_color,
                    c.id as customer_id, c.name as customer_db_name, c.phone as customer_db_phone, c.licence_no as customer_licence
             FROM firearms f
             LEFT JOIN locations l ON f.current_location_id = l.id
             LEFT JOIN customers c ON f.customer_id = c.id
-            WHERE UPPER(f.serial) = ?
-        """, (norm_s,)) as cur:
+            WHERE UPPER(f.serial) = ? OR REPLACE(REPLACE(REPLACE(UPPER(f.serial), '-', ''), ' ', ''), '/', '') = ?
+        """, (norm_s, clean_s)) as cur:
             row = await cur.fetchone()
             if not row:
                 raise HTTPException(status_code=404, detail="Firearm not found")
             return dict(row)
+    finally:
+        await db.close()
 
 @app.post("/api/firearms")
 async def save_firearm(gun: FirearmModel):
@@ -512,10 +557,11 @@ async def save_firearm(gun: FirearmModel):
     owner_name = gun.consignor_name.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
     owner_phone = gun.consignor_phone.strip() if gun.storage_type in ['Customer Storage', 'Consignment Sale', 'Layby'] else ""
 
-    async with aiosqlite.connect(DB_PATH) as db:
+    db = await get_db_connection()
+    try:
         cust_id = None
         if owner_name:
-            async with db.execute("SELECT id FROM customers WHERE name = ?", (owner_name,)) as cur_c:
+            async with db.execute("SELECT id FROM customers WHERE UPPER(name) = ?", (owner_name.upper(),)) as cur_c:
                 row = await cur_c.fetchone()
                 if row:
                     cust_id = row[0]
@@ -538,81 +584,17 @@ async def save_firearm(gun: FirearmModel):
             gun.price or 0.0, gun.was_price or 0.0, loc, gun.notes or "", gun.printed_notes or ""
         ))
         await db.commit()
-    return {"status": "success", "serial": norm_s}
+        return {"status": "success", "serial": norm_s}
+    finally:
+        await db.close()
 
 @app.delete("/api/firearms/{serial:path}")
 async def delete_firearm(serial: str):
     norm_s = normalize_serial(serial)
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM firearms WHERE UPPER(serial) = ?", (norm_s,))
-        await db.commit()
-    return {"status": "success"}
-
-@app.get("/api/customers")
-async def get_customers():
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        sql = """
-            SELECT c.*, 
-                   COUNT(CASE WHEN f.status = 'In Store' THEN f.serial END) as active_guns,
-                   COUNT(CASE WHEN f.storage_type = 'Customer Storage' AND f.status = 'In Store' THEN f.serial END) as storage_guns,
-                   COUNT(CASE WHEN f.storage_type = 'Consignment Sale' AND f.status = 'In Store' THEN f.serial END) as consignment_guns
-            FROM customers c
-            LEFT JOIN firearms f ON f.customer_id = c.id
-            GROUP BY c.id ORDER BY c.name ASC
-        """
-        async with db.execute(sql) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-@app.get("/api/customers/{cid}")
-async def get_customer_detail(cid: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM customers WHERE id = ?", (cid,)) as cur:
-            cust = await cur.fetchone()
-            if not cust:
-                raise HTTPException(status_code=404, detail="Customer not found")
-        async with db.execute("""
-            SELECT f.*, COALESCE(l.name, f.current_location_id) as location_name
-            FROM firearms f
-            LEFT JOIN locations l ON f.current_location_id = l.id
-            WHERE f.customer_id = ?
-            ORDER BY f.status, f.last_scanned_at DESC
-        """, (cid,)) as cur_g:
-            guns = [dict(r) for r in await cur_g.fetchall()]
-        data = dict(cust)
-        data["firearms"] = guns
-        return data
-
-@app.post("/api/customers")
-async def save_customer(c: CustomerModel):
-    async with aiosqlite.connect(DB_PATH) as db:
-        if c.id:
-            await db.execute("""
-                UPDATE customers SET name=?, business_name=?, phone=?, email=?, licence_no=?, address=?, notes=?
-                WHERE id=?
-            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes, c.id))
-            cid = c.id
-        else:
-            cur = await db.execute("""
-                INSERT INTO customers (name, business_name, phone, email, licence_no, address, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (c.name.strip(), c.business_name, c.phone, c.email, c.licence_no, c.address, c.notes))
-            cid = cur.lastrowid
-        await db.commit()
-    return {"status": "success", "id": cid}
-
-@app.post("/api/auth/pin-login")
-async def pin_login(payload: PinLoginPayload):
-    pin = payload.pin.strip()
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, username, full_name, role, badge_code FROM users WHERE pin = ? AND is_active = 1", (pin,)) as cur:
-            user = await cur.fetchone()
-            if not user:
-                raise HTTPException(status_code=401, detail="Invalid PIN code")
-            return {"status": "success", "user": dict(user)}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8090, reload=True)
+    clean_s = strip_punctuation(norm_s)
+    db = await get_db_connection()
+    try:
+        await db.execute("""
+            DELETE FROM firearms 
+            WHERE UPPER(serial) = ? OR REPLACE(REPLACE(REPLACE(UPPER(serial), '-', ''), ' ', ''), '/', '') = ?
+        """, (norm_s,
