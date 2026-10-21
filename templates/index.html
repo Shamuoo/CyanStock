@@ -877,4 +877,1695 @@ body.audit-mode .audit-banner { display: flex !important; }
         </div>
 
         <div class="card audit-hide">
-            <h3 style="margin-top:0;">+
+            <h3 style="margin-top:0;">+ Add Powder, Primer or Factory Ammunition Batch</h3>
+            <div class="form-grid">
+                <div><label>SKU / Barcode *</label><input type="text" id="cm-sku" placeholder="PWD-AR2208-1KG"></div>
+                <div><label>Brand *</label><input type="text" id="cm-brand" placeholder="ADI / CCI / Winchester"></div>
+                <div><label>Product Name *</label><input type="text" id="cm-name" placeholder="AR2208 1kg Bottle"></div>
+                <div>
+                    <label>Regulated Type</label>
+                    <select id="cm-type">
+                        <option value="Smokeless Powder">Smokeless Powder</option>
+                        <option value="Black Powder">Black Powder</option>
+                        <option value="Primers">Primers</option>
+                        <option value="Factory Ammo">Factory Ammo</option>
+                    </select>
+                </div>
+                <div><label>Calibre / Burn Rate</label><input type="text" id="cm-grade" placeholder="308 Win / Medium"></div>
+                <div><label>Batch / Lot Number</label><input type="text" id="cm-lot" placeholder="LOT-2026-XX"></div>
+                <div><label>Units In Stock</label><input type="number" id="cm-qty" value="10"></div>
+                <div><label>Unit NEQ Weight (kg)</label><input type="number" step="0.01" id="cm-neq" value="1.0"></div>
+                <div><label>Retail Price ($)</label><input type="number" step="0.01" id="cm-price" value="145.0"></div>
+            </div>
+            <button class="btn btn-primary" onclick="saveConsumable()">+ Save Regulated Consumable</button>
+        </div>
+
+        <div class="card">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>SKU</th><th>Type</th><th>Brand & Description</th><th>Calibre / Grade</th><th>Batch / Lot #</th><th>Qty</th><th>Unit NEQ</th><th>Total NEQ (kg)</th><th>Price</th><th>Quick Adjust</th></tr>
+                    </thead>
+                    <tbody id="consumables-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 9. NSW ELECTRONIC BOUND BOOK (A&D) TAB -->
+    <section id="tab-boundbook" class="tab-pane">
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+                <div>
+                    <h3 style="margin:0;">📘 NSW Police Firearms Registry — Electronic Bound Book (Acquisition & Disposal)</h3>
+                    <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted);">Official dealer compliance register tracking Acquisition particulars, Safe custody, and PTA-verified Disposals.</p>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="month" id="bb-month-filter" style="width:165px;" onchange="renderBoundBookTable()">
+                    <button class="btn" onclick="document.getElementById('bb-month-filter').value='';renderBoundBookTable();">Show All</button>
+                    <button class="btn btn-primary" onclick="exportBoundBookCSV()">📥 Export NSW Registry CSV</button>
+                    <button class="btn btn-success" onclick="window.print()">🖨️ Print Inspection Sheet</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Book Ref</th>
+                            <th>NSW Rego</th>
+                            <th>Serial</th>
+                            <th>Make / Model / Calibre / Action</th>
+                            <th>Cat</th>
+                            <th>Date Acquired & Source</th>
+                            <th>Current Custody Status</th>
+                            <th>Date Disposed</th>
+                            <th>Disposed To (Name & Licence)</th>
+                            <th>PTA Number</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boundbook-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 10. INTERSTATE / QLD TRANSIT TAB -->
+    <section id="tab-transit" class="tab-pane">
+        <div class="card audit-hide">
+            <h3 style="margin-top:0;">🚚 Create Interstate Transfer / Consignment (NSW ➔ QLD / Interstate)</h3>
+            <p style="font-size:12px;color:var(--text-muted);">Generates outer crate labels containing Consignor Dealer (from Settings), Receiving Dealer, End-Customer PTA particulars, and Firearm Serials.</p>
+            <div class="form-grid">
+                <div><label>Receiving Dealer Business *</label><input type="text" id="tr-biz" placeholder="Warwick Outdoors & Sports"></div>
+                <div><label>Receiving Dealer Contact</label><input type="text" id="tr-contact" placeholder="Dealer Armourer"></div>
+                <div><label>Receiving Dealer Licence # *</label><input type="text" id="tr-lic" placeholder="QLD Dealer Lic: 50001234"></div>
+                <div><label>Receiving Dealer Phone</label><input type="text" id="tr-phone" placeholder="(07) 4661 1234"></div>
+                <div><label>Destination State</label><select id="tr-state"><option>QLD</option><option>NSW</option><option>VIC</option><option>SA</option><option>WA</option><option>TAS</option></select></div>
+                <div><label>Destination Street Address *</label><input type="text" id="tr-addr" placeholder="115 Palmerin St, Warwick QLD 4370"></div>
+                <div><label>Acquiring Customer Name</label><input type="text" id="tr-cust-name" placeholder="Johnathan Campbell"></div>
+                <div><label>Customer Phone</label><input type="text" id="tr-cust-phone" placeholder="0412 345 678"></div>
+                <div><label>Customer Weapons Licence #</label><input type="text" id="tr-cust-lic" placeholder="71029482"></div>
+                <div><label>Customer PTA Number</label><input type="text" id="tr-cust-pta" placeholder="PTA-994812"></div>
+                <div>
+                    <label>Carrier / Transport Mode</label>
+                    <select id="tr-carrier">
+                        <option>StarTrack Secure</option>
+                        <option>Dealer Direct Escort (Tenterfield Firearms)</option>
+                        <option>Licensed Dangerous Goods Courier</option>
+                    </select>
+                </div>
+                <div><label>Firearm Serials (Comma separated) *</label><input type="text" id="tr-serials" placeholder="19Y12345, K323768"></div>
+            </div>
+            <button class="btn btn-primary" onclick="createInterstateShipment()">+ Create Transfer Manifest & Stage Firearms</button>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0;">Active Interstate & Dealer Transfer Manifests</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Shipment #</th><th>Receiving Dealer & Licence</th><th>Acquiring Customer & PTA</th><th>Firearms Included</th><th>Carrier & Tracking</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="shipments-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 11. CUSTOMERS & SUPPLIERS TAB -->
+    <section id="tab-customers" class="tab-pane">
+        <div style="display:grid;grid-template-columns: 1.3fr 1fr;gap:16px;align-items:start;">
+            <div class="card">
+                <h3 style="margin-top:0;">👥 Customer Directory, Licence Categories & Store Credit</h3>
+                <div class="form-grid audit-hide">
+                    <div><label>Full Name *</label><input type="text" id="c-name"></div>
+                    <div><label>Phone</label><input type="text" id="c-phone"></div>
+                    <div><label>Firearms Licence #</label><input type="text" id="c-lic"></div>
+                    <div><label>Endorsed Categories</label><input type="text" id="c-cats" value="Cat A, Cat B"></div>
+                    <div><label>Licence Expiry</label><input type="date" id="c-exp"></div>
+                    <div><label>Hike Store Credit ($)</label><input type="number" step="0.01" id="c-credit" value="0"></div>
+                </div>
+                <button class="btn btn-primary audit-hide" style="margin-bottom:12px;" onclick="saveCustomer()">+ Add / Update Customer</button>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Name</th><th>Phone</th><th>Licence #</th><th>Categories</th><th>Active Guns</th><th>Store Credit</th></tr>
+                        </thead>
+                        <tbody id="customers-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">🏢 Wholesale Suppliers (NIOA, OSA, Winchester)</h3>
+                <div class="form-grid audit-hide">
+                    <div><label>Supplier Name *</label><input type="text" id="sup-name"></div>
+                    <div><label>Account #</label><input type="text" id="sup-acct"></div>
+                    <div><label>Dealer Licence #</label><input type="text" id="sup-lic"></div>
+                    <div><label>Phone / Email</label><input type="text" id="sup-contact"></div>
+                </div>
+                <button class="btn btn-primary audit-hide" style="margin-bottom:12px;" onclick="saveSupplier()">+ Add Supplier</button>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Supplier</th><th>Account #</th><th>Dealer Licence</th><th>Contact</th></tr>
+                        </thead>
+                        <tbody id="suppliers-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 12. SETTINGS & BACKUPS TAB -->
+    <section id="tab-settings" class="tab-pane">
+        <div style="display:grid;grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));gap:16px;">
+            <div class="card">
+                <h3 style="margin-top:0;">🏪 Store & NSW Dealer Compliance Settings</h3>
+                <div class="form-grid">
+                    <div><label>Dealer Business Name</label><input type="text" id="set-store-name"></div>
+                    <div><label>NSW Dealer Licence #</label><input type="text" id="set-dealer-lic"></div>
+                    <div><label>Store Street Address</label><input type="text" id="set-store-addr"></div>
+                    <div><label>Store Phone Number</label><input type="text" id="set-store-phone"></div>
+                    <div><label>Statutory Max Powder NEQ (kg)</label><input type="number" step="0.5" id="set-max-neq"></div>
+                    <div>
+                        <label>Default Barcode Data Source</label>
+                        <select id="set-barcode-src">
+                            <option value="serial">Firearm Serial Number</option>
+                            <option value="sku">Hike POS SKU</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="saveStoreSettings()">💾 Save Store Configuration</button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">💾 Host Persistence & Automated `.zip` Backups</h3>
+                <p style="font-size:12px;color:var(--text-muted);">
+                    SQLite WAL mode is active (`cyanstock.db`). Nightly snapshots are automatically written to `/mnt/user/appdata/cyanstock/backups/`.
+                </p>
+                <button class="btn btn-success" style="margin-bottom:12px;" onclick="triggerManualBackup()">📦 Create Instant `.zip` Database Snapshot</button>
+                <div id="backups-list" style="font-size:12px;"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">🔐 Staff Operators & Lanyard Wedge Badges (`STF:*`)</h3>
+                <div class="form-grid">
+                    <div><label>Operator Name</label><input type="text" id="stf-name"></div>
+                    <div><label>Role</label><select id="stf-role"><option>Counter Staff</option><option>Admin</option></select></div>
+                    <div><label>4-Digit PIN</label><input type="text" id="stf-pin" placeholder="1234"></div>
+                    <div><label>Badge Barcode</label><input type="text" id="stf-badge" placeholder="STF:NAME"></div>
+                </div>
+                <button class="btn btn-primary" style="margin-bottom:10px;" onclick="addStaffOperator()">+ Add Operator</button>
+                <div id="staff-list-box"></div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0;">⚡ Architecture & Credits</h3>
+                <p style="font-size:13px;line-height:1.6;">
+                    <strong>CyanStock Vault & Compliance Suite v{{ version }}</strong><br>
+                    • Built for <strong>Tenterfield Firearms</strong> (NSW Firearms Dealer)<br>
+                    • Thermal Print Engine: <strong>CyanLabel: Armoury</strong> (62mm Brother QL & 72mm POS Receipt Native SVG Engine)<br>
+                    • POS Webhook Endpoint: <code>POST /api/hike/webhook/sale</code><br>
+                    • Powered by <strong>Cyan Tech</strong> & Google Gemini AI
+                </p>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<!-- Floating Multi-Gun Bulk Action Bar -->
+<div class="bulk-float-bar" id="bulk-bar">
+    <span><strong id="bulk-selected-count">0</strong> Firearms Selected</span>
+    <select id="bulk-target-safe" style="width:190px;background:#1e293b;color:#fff;border-color:#475569;"></select>
+    <button class="btn btn-primary" onclick="executeBulkSafeMove()">Move Selected to Safe</button>
+    <button class="btn" onclick="clearBulkSelection()">Cancel</button>
+</div>
+
+<!-- Quick-Inspect Dossier & PTA Release Guard Modal -->
+<div class="modal-backdrop" id="dossier-modal" onclick="if(event.target===this) closeDossierModal()">
+    <div class="modal-box" id="dossier-modal-content"></div>
+</div>
+
+<!-- Closing Sweep Modal -->
+<div class="modal-backdrop" id="sweep-modal" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="modal-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;">🌙 End-of-Day Closing Sweep Reconciliation</h3>
+            <button class="btn" onclick="document.getElementById('sweep-modal').classList.remove('open')">✕ Close</button>
+        </div>
+        <p style="font-size:12px;color:var(--text-muted);">Flags any firearm currently assigned to floor display walls (`DISP-*`) or workshop benches (`BENCH-*`) that has not been locked in an overnight safe.</p>
+        <div id="sweep-modal-body"></div>
+    </div>
+</div>
+
+<!-- Staff PIN Fast-Switch Modal -->
+<div class="modal-backdrop" id="pin-modal" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="modal-box" style="max-width:380px;text-align:center;">
+        <h3 style="margin-top:0;">👤 Operator PIN / Badge Switch</h3>
+        <p style="font-size:12px;color:var(--text-muted);">Enter PIN (`4091` Admin, `1234` Counter Staff) or scan `STF:*` lanyard badge.</p>
+        <input type="password" id="pin-input" placeholder="Enter PIN..." style="font-size:20px;text-align:center;margin-bottom:12px;" onkeydown="if(event.key==='Enter') verifyStaffPin()">
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;" onclick="verifyStaffPin()">Switch Operator</button>
+    </div>
+</div>
+
+<!-- Add Safe Modal -->
+<div class="modal-backdrop" id="safe-modal" onclick="if(event.target===this) this.classList.remove('open')">
+    <div class="modal-box" style="max-width:460px;">
+        <h3 style="margin-top:0;">Configure Physical Safe / Location</h3>
+        <div class="form-grid" style="grid-template-columns:1fr;">
+            <div><label>Safe ID (Barcode `LOC:ID`) *</label><input type="text" id="sf-id" placeholder="SAFE-04"></div>
+            <div><label>Display Name *</label><input type="text" id="sf-name" placeholder="Safe 4 (Lokaway)"></div>
+            <div><label>Category</label><select id="sf-cat"><option>Safe</option><option>Display</option><option>Workshop</option></select></div>
+            <div><label>Max Gun Capacity</label><input type="number" id="sf-cap" value="30"></div>
+            <div><label>Badge Color</label><input type="color" id="sf-color" value="#0284c7" style="height:38px;"></div>
+            <div><label>Notes / Compliance</label><input type="text" id="sf-notes" placeholder="Cat A/B Longarms"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveSafeLocation()">Save Safe</button>
+    </div>
+</div>
+
+<!-- Dedicated Print Mount -->
+<div id="print-mount"></div>
+
+<script>
+let STATE = {
+    firearms: [],
+    locations: [],
+    customers: [],
+    special_orders: [],
+    suppliers: [],
+    consumables: [],
+    work_orders: [],
+    shipments: [],
+    staff: [],
+    settings: {},
+    neq_summary: { total_neq_kg: 0, max_neq_kg: 50, pct: 0 },
+    duplicate_serials: [],
+    closing_sweep: [],
+    backups: [],
+    storageFilter: "ALL",
+    selectedSerials: new Set(),
+    activeSafeDrawer: null,
+    activeOperator: localStorage.getItem("cyanstock_operator") || "Master Admin"
+};
+
+// --- 100% OFFLINE PURE-DOM CODE 128 BARCODE GENERATOR ---
+const CODE128_PATTERNS = [
+    "11011001100","11001101100","11001100110","10010011000","10010001100","10001001100","10011001000","10011000100",
+    "10001100100","11001001000","11001000100","11000100100","10110011100","10011011100","10011001110","10111001100",
+    "10011101100","10011100110","11001110010","11001011100","11001001110","11011100100","11001110100","11101101110",
+    "11101001100","11100101100","11100100110","11101100100","11100110100","11100110010","11011011000","11011000110",
+    "11000110110","10100011000","10001011000","10001000110","10110001000","10001101000","10001100010","11010001000",
+    "11000101000","11000100010","10110111000","10110001110","10001101110","10111011000","10111000110","10001110110",
+    "11101110110","11010001110","11000101110","11011101000","11011100010","11011101110","11101011000","11101000110",
+    "11100010110","11101101000","11101100010","11100011010","11101111010","11001000010","11110001010","10100110000",
+    "10100001100","10010110000","10010000110","10000101100","10000100110","10110010000","10110000100","10011010000",
+    "10011000010","10000110100","10000110010","11000010010","11001010000","11110111010","11000010100","10001111010",
+    "10100111100","10010111100","10010011110","10111100100","10011110100","10011110010","11110100100","11110010100",
+    "11110010010","11011011110","11011110110","11110110110","10101111000","10100011110","10001011110","10111101000",
+    "10111100010","11110101000","11110100010","10111011110","10111101110","11101011110","11110101110","11010000100",
+    "11010010000","11010011100","1100011101011"
+];
+
+function createCode128SVG(text, heightPx = 62) {
+    const clean = String(text || "TF-0001").replace(/[^\x20-\x7E]/g, "");
+    let codes = [104]; // Start Code B
+    let checksum = 104;
+    for (let i = 0; i < clean.length; i++) {
+        const val = clean.charCodeAt(i) - 32;
+        codes.push(val);
+        checksum += val * (i + 1);
+    }
+    codes.push(checksum % 103);
+    codes.push(106); // Stop
+
+    const bits = codes.map(c => CODE128_PATTERNS[c]).join("");
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${bits.length + 20} ${heightPx}`);
+    svg.setAttribute("width", "100%");
+    svg.setAttribute("height", `${heightPx}px`);
+    svg.style.display = "block";
+
+    for (let i = 0; i < bits.length; i++) {
+        if (bits[i] === "1") {
+            const rect = document.createElementNS(ns, "rect");
+            rect.setAttribute("x", String(i + 10));
+            rect.setAttribute("y", "0");
+            rect.setAttribute("width", "1.15");
+            rect.setAttribute("height", String(heightPx));
+            rect.setAttribute("fill", "#000000");
+            svg.appendChild(rect);
+        }
+    }
+    return svg;
+}
+
+function norm(str) {
+    return String(str || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function copyText(val, label) {
+    navigator.clipboard.writeText(String(val || ""));
+}
+
+async function loadBootstrap() {
+    const res = await fetch("/api/bootstrap");
+    const data = await res.json();
+    Object.assign(STATE, data);
+
+    document.getElementById("store-badge").textContent = `${STATE.settings.store_name || "Tenterfield Firearms"} (${STATE.settings.dealer_licence || ""})`;
+    document.getElementById("active-operator-label").textContent = STATE.activeOperator;
+
+    // Header badges
+    document.getElementById("sweep-count").textContent = STATE.closing_sweep.length;
+    document.getElementById("header-neq").textContent = STATE.neq_summary.total_neq_kg;
+    const dupBtn = document.getElementById("btn-dup-alert");
+    if (STATE.duplicate_serials.length > 0) {
+        dupBtn.style.display = "inline-flex";
+        document.getElementById("dup-count").textContent = STATE.duplicate_serials.length;
+    } else {
+        dupBtn.style.display = "none";
+    }
+
+    populateLocationDropdowns();
+    renderArmouryTable();
+    renderSafesGrid();
+    renderLaybysAndConsignments();
+    renderSpecialOrders();
+    renderWorkshop();
+    renderConsumables();
+    renderBoundBookTable();
+    renderShipments();
+    renderCustomersAndSuppliers();
+    renderSettingsTab();
+    updateLiveLabelPreview();
+}
+
+function populateLocationDropdowns() {
+    const filterSafe = document.getElementById("filter-safe");
+    const prevFilter = filterSafe.value || "ALL";
+    filterSafe.innerHTML = `<option value="ALL">All Safes & Locations</option>` +
+        STATE.locations.map(l => `<option value="${l.id}">${l.name} (${l.current_count}/${l.max_capacity})</option>`).join("");
+    filterSafe.value = prevFilter;
+
+    const opts = STATE.locations.map(l => `<option value="${l.id}">${l.name} (${l.id})</option>`).join("");
+    ["scan-step2", "audit-safe-select", "in-location", "bulk-target-safe", "mass-transfer-target"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const prev = el.value;
+            el.innerHTML = opts;
+            if (prev) el.value = prev;
+        }
+    });
+
+    const qBtns = document.getElementById("twoscan-quick-btns");
+    if (qBtns) {
+        qBtns.innerHTML = STATE.locations.map(l =>
+            `<button class="btn" style="border-left:4px solid ${l.color};" onclick="document.getElementById('scan-step2').value='${l.id}';handleTwoScanInput();">➔ ${l.name}</button>`
+        ).join("");
+    }
+}
+
+function setStorageFilter(filterVal, cardEl) {
+    STATE.storageFilter = filterVal;
+    document.querySelectorAll(".kpi-card").forEach(c => c.classList.remove("active"));
+    if (cardEl) cardEl.classList.add("active");
+    renderArmouryTable();
+}
+
+function renderArmouryTable() {
+    const q = norm(document.getElementById("global-search").value);
+    const safeFilter = document.getElementById("filter-safe").value;
+    const catFilter = document.getElementById("filter-cat").value;
+
+    const activeGuns = STATE.firearms.filter(f => f.status === "In Store");
+    document.getElementById("kpi-total").textContent = activeGuns.length;
+    document.getElementById("kpi-sale").textContent = activeGuns.filter(f => f.storage_type === "Sale (Floor Stock)").length;
+    document.getElementById("kpi-storage").textContent = activeGuns.filter(f => f.storage_type === "Customer Storage").length;
+    document.getElementById("kpi-layby").textContent = activeGuns.filter(f => f.storage_type === "Layby").length;
+    document.getElementById("kpi-consign").textContent = activeGuns.filter(f => f.storage_type === "Consignment Sale").length;
+    document.getElementById("kpi-disposed").textContent = STATE.firearms.filter(f => f.status !== "In Store").length;
+    document.getElementById("nav-count-armoury").textContent = activeGuns.length;
+
+    const filtered = STATE.firearms.filter(f => {
+        if (STATE.storageFilter === "DISPOSED") {
+            if (f.status === "In Store") return false;
+        } else {
+            if (f.status !== "In Store") return false;
+            if (STATE.storageFilter !== "ALL" && f.storage_type !== STATE.storageFilter) return false;
+        }
+        if (safeFilter !== "ALL" && f.current_location_id !== safeFilter) return false;
+        if (catFilter !== "ALL" && f.category !== catFilter) return false;
+        if (q) {
+            const hay = norm([f.serial, f.sku, f.rego_no, f.book_no, f.make, f.model, f.calibre, f.customer_name, f.consignor_name, f.pta_number, f.notes].join(" "));
+            if (!hay.includes(q)) return false;
+        }
+        return true;
+    });
+
+    const tbody = document.getElementById("armoury-tbody");
+    tbody.innerHTML = filtered.map(f => {
+        const showOwner = ["Customer Storage", "Consignment Sale", "Layby", "Workshop / Repair"].includes(f.storage_type) || ["Consignment", "Gun Storage"].includes(f.condition);
+        const ownerDisplay = showOwner ? (f.customer_name || f.consignor_name || "—") : "<span style='color:var(--text-muted);'>Store Stock</span>";
+        const stageBadge = f.layby_stage ? `<div class="badge badge-purple" style="margin-top:3px;">${f.layby_stage}</div>` : "";
+        const checked = STATE.selectedSerials.has(f.serial) ? "checked" : "";
+
+        return `
+        <tr class="clickable-row" onclick="openDossierModal('${f.serial}')">
+            <td onclick="event.stopPropagation()"><input type="checkbox" ${checked} onchange="toggleSelectGun('${f.serial}', this.checked)"></td>
+            <td>
+                <div class="mono" style="color:var(--primary);">${f.serial}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${f.sku || ""}</div>
+            </td>
+            <td>
+                <div class="mono">${f.rego_no || "—"}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${f.book_no || ""}</div>
+            </td>
+            <td>
+                <strong>${f.make} ${f.model}</strong>
+                <div style="font-size:12px;color:var(--text-muted);">${f.calibre} • ${f.action || f.item_type} ${f.barrel_length ? '• ' + f.barrel_length : ''}</div>
+            </td>
+            <td><span class="badge badge-info">${f.category}</span></td>
+            <td>
+                <span class="badge">${f.storage_type}</span>
+                ${stageBadge}
+            </td>
+            <td>${ownerDisplay}</td>
+            <td><span class="badge badge-success">${f.location_name}</span></td>
+            <td class="audit-hide"><strong>${f.price > 0 ? '$' + Number(f.price).toFixed(2) : '—'}</strong></td>
+            <td onclick="event.stopPropagation()">
+                <button class="btn" onclick="printSingleGunLabel('${f.serial}')">🖨️ Tag</button>
+            </td>
+        </tr>`;
+    }).join("");
+}
+
+function toggleSelectGun(serial, isChecked) {
+    if (isChecked) STATE.selectedSerials.add(serial);
+    else STATE.selectedSerials.delete(serial);
+    updateBulkBar();
+}
+
+function toggleSelectAllGuns(isChecked) {
+    document.querySelectorAll("#armoury-tbody input[type='checkbox']").forEach(cb => {
+        cb.checked = isChecked;
+    });
+    if (!isChecked) STATE.selectedSerials.clear();
+    else {
+        STATE.firearms.filter(f => f.status === "In Store").forEach(f => STATE.selectedSerials.add(f.serial));
+    }
+    updateBulkBar();
+}
+
+function clearBulkSelection() {
+    STATE.selectedSerials.clear();
+    document.getElementById("chk-select-all").checked = false;
+    renderArmouryTable();
+    updateBulkBar();
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById("bulk-bar");
+    const cnt = STATE.selectedSerials.size;
+    document.getElementById("bulk-selected-count").textContent = cnt;
+    bar.style.display = cnt > 0 ? "flex" : "none";
+}
+
+async function executeBulkSafeMove() {
+    const target = document.getElementById("bulk-target-safe").value;
+    const serials = Array.from(STATE.selectedSerials);
+    if (!serials.length) return;
+
+    const loc = STATE.locations.find(l => l.id === target);
+    if (loc && loc.max_capacity > 0 && (loc.current_count + serials.length) > loc.max_capacity) {
+        if (!confirm(`CAPACITY WARNING: Moving ${serials.length} guns into ${loc.name} will exceed its ${loc.max_capacity}-gun limit (${loc.current_count + serials.length}/${loc.max_capacity}). Proceed anyway?`)) {
+            return;
+        }
+    }
+
+    await fetch("/api/scan/bulk-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serials, target_location_id: target, operator_name: STATE.activeOperator })
+    });
+    clearBulkSelection();
+    await loadBootstrap();
+}
+
+function openDossierModal(serial) {
+    const f = STATE.firearms.find(x => x.serial === serial);
+    if (!f) return;
+    const modal = document.getElementById("dossier-modal");
+    const box = document.getElementById("dossier-modal-content");
+
+    box.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:14px;">
+            <div>
+                <span class="badge badge-info">${f.category}</span>
+                <span class="badge">${f.storage_type}</span>
+                <h2 style="margin:4px 0 0;">${f.make} ${f.model} (${f.calibre})</h2>
+            </div>
+            <button class="btn" onclick="closeDossierModal()">✕ Close</button>
+        </div>
+
+        <!-- High-Visibility Quick-Copy Compliance Strip -->
+        <div class="kpi-strip" style="margin-bottom:16px;">
+            <div class="card" style="margin:0;padding:10px;">
+                <div class="kpi-label">Serial Number</div>
+                <div class="mono" style="font-size:18px;margin:4px 0;">${f.serial}</div>
+                <button class="btn" onclick="copyText('${f.serial}')">📋 Copy Serial</button>
+            </div>
+            <div class="card" style="margin:0;padding:10px;">
+                <div class="kpi-label">NSW Rego Number</div>
+                <div class="mono" style="font-size:18px;margin:4px 0;">${f.rego_no || "—"}</div>
+                <button class="btn" onclick="copyText('${f.rego_no || ""}')">📋 Copy Rego</button>
+            </div>
+            <div class="card" style="margin:0;padding:10px;">
+                <div class="kpi-label">Dealer Book Ref</div>
+                <div class="mono" style="font-size:18px;margin:4px 0;">${f.book_no || "—"}</div>
+                <button class="btn" onclick="copyText('${f.book_no || ""}')">📋 Copy Book #</button>
+            </div>
+            <div class="card" style="margin:0;padding:10px;">
+                <div class="kpi-label">Hike POS SKU</div>
+                <div class="mono" style="font-size:18px;margin:4px 0;">${f.sku || "—"}</div>
+                <button class="btn" onclick="copyText('${f.sku || ""}')">📋 Copy SKU</button>
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div><strong>Current Safe:</strong> ${f.location_name} (${f.current_location_id})</div>
+            <div><strong>Action / Barrel:</strong> ${f.action || "—"} / ${f.barrel_length || "—"} (${f.shot_capacity || "—"})</div>
+            <div><strong>Owner / Customer:</strong> ${f.customer_name || f.consignor_name || "Store Floor Stock"}</div>
+            <div><strong>Phone / Licence:</strong> ${f.customer_phone || f.consignor_phone || "—"} (${f.customer_licence_no || "—"})</div>
+            <div><strong>PTA Reference:</strong> ${f.pta_number || "—"}</div>
+            <div class="audit-hide"><strong>Retail Price:</strong> $${Number(f.price || 0).toFixed(2)}</div>
+        </div>
+        <div style="background:var(--surface-alt);padding:10px;border-radius:6px;margin-bottom:14px;">
+            <strong>Notes:</strong> ${f.notes || f.printed_notes || "No additional notes."}
+        </div>
+
+        <!-- PTA & Licence Category Validation Release Guard -->
+        <div class="card audit-hide" style="border:2px solid var(--primary);background:var(--surface-alt);">
+            <h4 style="margin:0 0 8px;color:var(--primary);">🛡️ NSW PTA & Licence Category Release / Disposal Guard</h4>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:0;">Validates Permit to Acquire (PTA) and confirms the customer holds <strong>${f.category}</strong> endorsement before releasing from vault custody.</p>
+            <div class="form-grid">
+                <div><label>Acquiring Customer Name *</label><input type="text" id="rel-name" value="${f.customer_name || f.consignor_name || ''}"></div>
+                <div><label>Customer Licence # *</label><input type="text" id="rel-lic" value="${f.customer_licence_no || ''}"></div>
+                <div><label>Customer Licence Categories *</label><input type="text" id="rel-cats" value="${f.customer_licence_cats || 'Cat A, Cat B'}"></div>
+                <div><label>Verified NSW PTA Number *</label><input type="text" id="rel-pta" value="${f.pta_number || ''}" placeholder="PTA-XXXXXX"></div>
+            </div>
+            <button class="btn btn-success" onclick="releaseFirearmWithGuard('${f.serial}')">✓ Verify PTA & Release / Dispose Firearm</button>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:12px;">
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary" onclick="printSingleGunLabel('${f.serial}')">🖨️ Print Thermal Tag</button>
+                <button class="btn audit-hide" onclick="loadGunIntoIntakeEditor('${f.serial}')">✏️ Edit Full Record</button>
+            </div>
+            <button class="btn btn-danger audit-hide" onclick="deleteFirearmRecord('${f.serial}')">🗑️ Delete</button>
+        </div>
+    `;
+    modal.classList.add("open");
+}
+
+function closeDossierModal() {
+    document.getElementById("dossier-modal").classList.remove("open");
+}
+
+async function releaseFirearmWithGuard(serial) {
+    const payload = {
+        serial,
+        customer_name: document.getElementById("rel-name").value,
+        customer_licence_no: document.getElementById("rel-lic").value,
+        customer_licence_cats: document.getElementById("rel-cats").value,
+        pta_number: document.getElementById("rel-pta").value,
+        operator_name: STATE.activeOperator
+    };
+    const res = await fetch("/api/firearms/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        alert(data.detail || "Release validation failed.");
+        return;
+    }
+    closeDossierModal();
+    await loadBootstrap();
+}
+
+function loadGunIntoIntakeEditor(serial) {
+    const f = STATE.firearms.find(x => x.serial === serial);
+    if (!f) return;
+    closeDossierModal();
+    switchTab("tab-intake");
+    document.getElementById("in-serial").value = f.serial;
+    document.getElementById("in-sku").value = f.sku || "";
+    document.getElementById("in-rego").value = f.rego_no || "";
+    document.getElementById("in-book").value = f.book_no || "";
+    document.getElementById("in-type").value = f.item_type || "Firearm";
+    document.getElementById("in-category").value = f.category || "Cat A";
+    document.getElementById("in-make").value = f.make || "";
+    document.getElementById("in-model").value = f.model || "";
+    document.getElementById("in-calibre").value = f.calibre || "";
+    document.getElementById("in-action").value = f.action || "";
+    document.getElementById("in-barrel").value = f.barrel_length || "";
+    document.getElementById("in-capacity").value = f.shot_capacity || "";
+    document.getElementById("in-storage-type").value = f.storage_type || "Sale (Floor Stock)";
+    document.getElementById("in-condition").value = f.condition || "New";
+    document.getElementById("in-location").value = f.current_location_id || "SAFE-01";
+    document.getElementById("in-layby-stage").value = f.layby_stage || "";
+    document.getElementById("in-owner-name").value = f.customer_name || f.consignor_name || "";
+    document.getElementById("in-owner-phone").value = f.customer_phone || f.consignor_phone || "";
+    document.getElementById("in-owner-lic").value = f.customer_licence_no || "";
+    document.getElementById("in-owner-cats").value = f.customer_licence_cats || "Cat A, Cat B";
+    document.getElementById("in-pta").value = f.pta_number || "";
+    document.getElementById("in-price").value = f.price || 0;
+    document.getElementById("in-was-price").value = f.was_price || 0;
+    document.getElementById("in-cost-price").value = f.cost_price || 0;
+    document.getElementById("in-printed-notes").value = f.printed_notes || "";
+    document.getElementById("in-notes").value = f.notes || "";
+    toggleOwnerIntakeFields();
+    updateLiveLabelPreview();
+}
+
+async function deleteFirearmRecord(serial) {
+    if (!confirm(`Permanently delete firearm ${serial} from CyanStock?`)) return;
+    await fetch(`/api/firearms/${encodeURIComponent(serial)}?operator=${encodeURIComponent(STATE.activeOperator)}`, { method: "DELETE" });
+    closeDossierModal();
+    await loadBootstrap();
+}
+
+// --- Two-Scan & Stocktake Audit ---
+async function handleTwoScanInput() {
+    const raw = document.getElementById("scan-step1").value.trim().toUpperCase();
+    const targetSafe = document.getElementById("scan-step2").value;
+    const fb = document.getElementById("twoscan-feedback");
+    if (!raw) return;
+
+    if (raw.startsWith("LOC:")) {
+        const locId = raw.replace("LOC:", "");
+        document.getElementById("scan-step2").value = locId;
+        document.getElementById("scan-step1").value = "";
+        fb.style.color = "var(--primary)";
+        fb.textContent = `🔒 Destination Safe Locked to ${locId}`;
+        return;
+    }
+
+    const res = await fetch("/api/scan/allocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            serial_or_code: raw,
+            target_location_id: targetSafe,
+            operator_name: STATE.activeOperator
+        })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        fb.style.color = "var(--danger)";
+        fb.textContent = `⚠️ ${data.detail}`;
+        if (confirm(`Barcode '${raw}' was not found in inventory. Open Intake Studio with '${raw}' pre-filled?`)) {
+            switchTab("tab-intake");
+            document.getElementById("in-serial").value = raw;
+            updateLiveLabelPreview();
+        }
+        return;
+    }
+    fb.style.color = "var(--success)";
+    fb.textContent = `✓ Moved ${data.serial} (${data.make} ${data.model}) from ${data.from} ➔ ${data.to_name}`;
+    document.getElementById("scan-step1").value = "";
+    document.getElementById("scan-step1").focus();
+    await loadBootstrap();
+}
+
+async function runSafeStocktakeAudit() {
+    const locId = document.getElementById("audit-safe-select").value;
+    const codes = document.getElementById("audit-scanned-input").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const res = await fetch("/api/scan/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location_id: locId, scanned_codes: codes })
+    });
+    const data = await res.json();
+    const box = document.getElementById("audit-results-box");
+    box.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <span class="badge badge-success">✓ Verified: ${data.verified.length}</span>
+            <span class="badge badge-danger">✕ Missing: ${data.missing.length}</span>
+            <span class="badge badge-warn">⚠️ Misplaced Here: ${data.misplaced.length}</span>
+        </div>
+        ${data.missing.length ? `<div style="margin-bottom:6px;color:var(--danger);font-size:12px;"><strong>Missing from ${locId}:</strong> ${data.missing.map(g => `${g.serial} (${g.make} ${g.model})`).join(", ")}</div>` : ""}
+        ${data.misplaced.length ? `<div style="color:var(--warning);font-size:12px;"><strong>Misplaced (Allocated elsewhere):</strong> ${data.misplaced.map(g => `${g.serial} (In ${g.current_location_id}) <button class="btn" onclick="quickFixMisplaced('${g.serial}','${locId}')">Move Here</button>`).join(" ")}</div>` : ""}
+    `;
+}
+
+async function quickFixMisplaced(serial, locId) {
+    await fetch("/api/scan/allocate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serial_or_code: serial, target_location_id: locId, operator_name: STATE.activeOperator })
+    });
+    await loadBootstrap();
+    await runSafeStocktakeAudit();
+}
+
+// --- Safes & 62x80mm Minimalist Door Placards ---
+function renderSafesGrid() {
+    const grid = document.getElementById("safe-cards-grid");
+    grid.innerHTML = STATE.locations.map(l => {
+        const over = l.fill_pct > 100;
+        const barColor = over ? "var(--danger)" : l.color;
+        return `
+        <div class="safe-card" style="border-top:5px solid ${l.color};" onclick="openSafeDrawer('${l.id}')">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <strong style="font-size:16px;">${l.name}</strong>
+                <span class="mono badge">${l.id}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${l.notes || l.category}</div>
+            <div class="safe-bar-bg">
+                <div style="width:${Math.min(l.fill_pct, 100)}%;height:100%;background:${barColor};"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:800;">
+                <span>${l.current_count} / ${l.max_capacity} Units</span>
+                <span style="color:${over ? 'var(--danger)' : 'var(--text)'};">${l.fill_pct}% Full ${over ? '⚠️ OVER' : ''}</span>
+            </div>
+        </div>`;
+    }).join("");
+
+    if (STATE.activeSafeDrawer) {
+        openSafeDrawer(STATE.activeSafeDrawer);
+    }
+}
+
+function openSafeDrawer(locId) {
+    STATE.activeSafeDrawer = locId;
+    const loc = STATE.locations.find(l => l.id === locId);
+    if (!loc) return;
+    const card = document.getElementById("safe-drawer-card");
+    card.style.display = "block";
+    document.getElementById("safe-drawer-title").textContent = `🔒 ${loc.name} (${loc.id}) — ${loc.current_count} Items Inside`;
+
+    const guns = STATE.firearms.filter(f => f.status === "In Store" && f.current_location_id === locId);
+    document.getElementById("safe-drawer-tbody").innerHTML = guns.map(f => `
+        <tr class="clickable-row" onclick="openDossierModal('${f.serial}')">
+            <td class="mono">${f.serial}</td>
+            <td class="mono">${f.sku || "—"}</td>
+            <td class="mono">${f.rego_no || "—"} / ${f.book_no || "—"}</td>
+            <td><strong>${f.make} ${f.model}</strong> (${f.calibre})</td>
+            <td><span class="badge badge-info">${f.category}</span></td>
+            <td>${f.storage_type}</td>
+            <td>${f.customer_name || f.consignor_name || "Store Stock"}</td>
+            <td onclick="event.stopPropagation()"><button class="btn" onclick="printSingleGunLabel('${f.serial}')">🖨️ Tag</button></td>
+        </tr>
+    `).join("");
+}
+
+async function massTransferSafeContents() {
+    if (!STATE.activeSafeDrawer) return;
+    const target = document.getElementById("mass-transfer-target").value;
+    if (target === STATE.activeSafeDrawer) return alert("Select a different destination safe.");
+    const serials = STATE.firearms.filter(f => f.status === "In Store" && f.current_location_id === STATE.activeSafeDrawer).map(f => f.serial);
+    if (!serials.length) return alert("Safe is already empty.");
+    if (!confirm(`Move all ${serials.length} firearms from ${STATE.activeSafeDrawer} to ${target}?`)) return;
+    await fetch("/api/scan/bulk-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serials, target_location_id: target, operator_name: STATE.activeOperator })
+    });
+    STATE.activeSafeDrawer = target;
+    await loadBootstrap();
+}
+
+function printCurrentSafePlacard() {
+    const loc = STATE.locations.find(l => l.id === STATE.activeSafeDrawer) || STATE.locations[0];
+    if (!loc) return;
+    const mount = document.getElementById("print-mount");
+    mount.innerHTML = "";
+
+    const box = document.createElement("div");
+    box.style.cssText = "width:62mm;height:80mm;border:3px solid #000;padding:3mm;background:#fff;color:#000;font-family:Arial,sans-serif;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;";
+    box.innerHTML = `
+        <div style="background:#000;color:#fff;text-align:center;padding:8px 4px;font-size:20px;font-weight:900;letter-spacing:0.5px;">
+            ${loc.name.toUpperCase()}
+        </div>
+        <div id="placard-svg-slot" style="padding:6px 0;text-align:center;"></div>
+        <div style="text-align:center;font-family:monospace;font-size:18px;font-weight:900;letter-spacing:1px;">
+            LOC:${loc.id}
+        </div>
+        <div style="border-top:2px solid #000;padding-top:6px;display:flex;justify-content:space-between;font-size:11px;font-weight:900;">
+            <span>${(loc.notes || loc.category).toUpperCase().slice(0, 22)}</span>
+            <span>CAP: ${loc.max_capacity} UNITS</span>
+        </div>
+    `;
+    mount.appendChild(box);
+    box.querySelector("#placard-svg-slot").appendChild(createCode128SVG(`LOC:${loc.id}`, 85));
+    window.print();
+}
+
+// --- Intake & CyanLabel Studio ---
+function toggleOwnerIntakeFields() {
+    const st = document.getElementById("in-storage-type").value;
+    const cond = document.getElementById("in-condition").value;
+    const show = ["Customer Storage", "Consignment Sale", "Layby", "Workshop / Repair"].includes(st) || ["Consignment", "Gun Storage"].includes(cond);
+    document.getElementById("in-owner-block").style.display = show ? "block" : "none";
+}
+
+function buildGunLabelElement(gunData, profile = "62mm") {
+    const wrap = document.createElement("div");
+    wrap.className = `thermal-preview-box ${profile === "72mm" ? "profile-72mm" : ""}`;
+
+    const showOwner = ["Customer Storage", "Consignment Sale", "Layby", "Workshop / Repair"].includes(gunData.storage_type) || ["Consignment", "Gun Storage"].includes(gunData.condition);
+    const ownerPrefix = gunData.storage_type === "Consignment Sale" || gunData.condition === "Consignment" ? "CSG:" : "CLIENT:";
+    const ownerLine = showOwner && (gunData.customer_name || gunData.consignor_name)
+        ? `<div style="border:1.5px solid #000;padding:2px 4px;font-size:11px;font-weight:900;text-align:center;margin-top:3px;">${ownerPrefix} ${gunData.customer_name || gunData.consignor_name} ${gunData.customer_phone ? '• ' + gunData.customer_phone : ''}</div>`
+        : "";
+
+    const priceNum = Number(gunData.price || 0);
+    const wasNum = Number(gunData.was_price || 0);
+    const priceHtml = priceNum > 0
+        ? `<div style="text-align:center;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin:3px 0;">
+            ${wasNum > priceNum ? `<div style="font-size:11px;text-decoration:line-through;font-weight:700;">WAS $${wasNum.toFixed(2)}</div>` : ""}
+            <div style="font-size:22px;font-weight:900;">$${priceNum.toFixed(2)}</div>
+           </div>`
+        : `<div style="text-align:center;border:2px solid #000;padding:4px;font-size:14px;font-weight:900;margin:3px 0;">${gunData.storage_type.toUpperCase()}</div>`;
+
+    const codeVal = (STATE.settings.barcode_source === "sku" && gunData.sku) ? gunData.sku : (gunData.serial || "TF-0001");
+
+    wrap.innerHTML = `
+        <div>
+            <div style="background:#000;color:#fff;text-align:center;font-size:11px;font-weight:900;padding:3px;letter-spacing:0.5px;">
+                ${(STATE.settings.store_name || "TENTERFIELD FIREARMS").toUpperCase()}
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;font-weight:900;">
+                <span style="border:1.5px solid #000;padding:1px 4px;">${gunData.category || "CAT A"}</span>
+                <span style="border:1.5px solid #000;padding:1px 4px;">${(gunData.condition || "NEW").toUpperCase()}</span>
+            </div>
+            <div style="text-align:center;margin:5px 0;">
+                <div style="font-size:15px;font-weight:900;line-height:1.15;">${gunData.make || "MAKE"} ${gunData.model || "MODEL"}</div>
+                <div style="font-size:13px;font-weight:800;margin-top:2px;">${gunData.calibre || ""} ${gunData.action ? '• ' + gunData.action : ''}</div>
+                <div style="font-size:10px;font-weight:700;">${[gunData.barrel_length, gunData.shot_capacity].filter(Boolean).join(" • ")}</div>
+            </div>
+            <div style="border:1.5px solid #000;padding:3px 5px;font-size:10px;font-family:monospace;font-weight:800;">
+                <div>S/N: ${gunData.serial || "—"}</div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span>REGO: ${gunData.rego_no || "—"}</span>
+                    <span>BOOK: ${gunData.book_no || "—"}</span>
+                </div>
+            </div>
+            ${ gunData.printed_notes ? `<div style="font-size:10px;font-weight:700;text-align:center;margin-top:3px;">${gunData.printed_notes}</div>` : "" }
+            ${priceHtml}
+            ${ownerLine}
+        </div>
+        <div style="margin-top:4px;text-align:center;">
+            <div class="svg-barcode-slot"></div>
+            <div style="font-family:monospace;font-size:12px;font-weight:900;margin-top:2px;">${codeVal}</div>
+        </div>
+    `;
+    wrap.querySelector(".svg-barcode-slot").appendChild(createCode128SVG(codeVal, 48));
+    return wrap;
+}
+
+function getIntakeFormData() {
+    return {
+        serial: document.getElementById("in-serial").value.trim().toUpperCase(),
+        sku: document.getElementById("in-sku").value.trim().toUpperCase(),
+        rego_no: document.getElementById("in-rego").value.trim(),
+        book_no: document.getElementById("in-book").value.trim(),
+        item_type: document.getElementById("in-type").value,
+        category: document.getElementById("in-category").value,
+        make: document.getElementById("in-make").value.trim(),
+        model: document.getElementById("in-model").value.trim(),
+        calibre: document.getElementById("in-calibre").value.trim(),
+        action: document.getElementById("in-action").value.trim(),
+        barrel_length: document.getElementById("in-barrel").value.trim(),
+        shot_capacity: document.getElementById("in-capacity").value.trim(),
+        storage_type: document.getElementById("in-storage-type").value,
+        condition: document.getElementById("in-condition").value,
+        current_location_id: document.getElementById("in-location").value,
+        layby_stage: document.getElementById("in-layby-stage").value,
+        consignor_name: document.getElementById("in-owner-name").value.trim(),
+        consignor_phone: document.getElementById("in-owner-phone").value.trim(),
+        customer_name: document.getElementById("in-owner-name").value.trim(),
+        customer_phone: document.getElementById("in-owner-phone").value.trim(),
+        customer_licence_no: document.getElementById("in-owner-lic").value.trim(),
+        customer_licence_cats: document.getElementById("in-owner-cats").value.trim(),
+        pta_number: document.getElementById("in-pta").value.trim().toUpperCase(),
+        commission_pct: parseFloat(document.getElementById("in-comm-pct").value || 15),
+        commission_min_fee: parseFloat(document.getElementById("in-comm-min").value || 50),
+        price: parseFloat(document.getElementById("in-price").value || 0),
+        was_price: parseFloat(document.getElementById("in-was-price").value || 0),
+        cost_price: parseFloat(document.getElementById("in-cost-price").value || 0),
+        supplier_name: document.getElementById("in-supplier").value.trim(),
+        printed_notes: document.getElementById("in-printed-notes").value.trim(),
+        notes: document.getElementById("in-notes").value.trim(),
+        operator_name: STATE.activeOperator
+    };
+}
+
+function updateLiveLabelPreview() {
+    const profile = document.getElementById("label-profile-select").value;
+    const data = getIntakeFormData();
+    const holder = document.getElementById("live-thermal-wrapper");
+    holder.replaceWith(buildGunLabelElement(data, profile));
+    document.querySelector("#tab-intake .thermal-preview-box").id = "live-thermal-wrapper";
+}
+
+function printLiveLabelPreview() {
+    const profile = document.getElementById("label-profile-select").value;
+    const mount = document.getElementById("print-mount");
+    mount.innerHTML = "";
+    mount.appendChild(buildGunLabelElement(getIntakeFormData(), profile));
+    window.print();
+}
+
+function printSingleGunLabel(serial) {
+    const f = STATE.firearms.find(x => x.serial === serial);
+    if (!f) return;
+    const mount = document.getElementById("print-mount");
+    mount.innerHTML = "";
+    mount.appendChild(buildGunLabelElement(f, STATE.settings.label_profile || "62mm"));
+    window.print();
+}
+
+async function saveIntakeFirearm(andPrint = false, forceOverwrite = false) {
+    const payload = getIntakeFormData();
+    payload.force_overwrite = forceOverwrite;
+    if (!payload.serial || !payload.make || !payload.model || !payload.calibre) {
+        return alert("Serial, Make, Model, and Calibre are required.");
+    }
+    const res = await fetch("/api/firearms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (res.status === 409) {
+        if (confirm(`${data.detail}\n\nDo you want to overwrite/update the existing record?`)) {
+            return saveIntakeFirearm(andPrint, true);
+        }
+        return;
+    }
+    if (!res.ok) return alert(data.detail || "Failed to save firearm.");
+    if (andPrint) printLiveLabelPreview();
+
+    // Sticky intake defaults retain Safe, Category, and Storage Type while clearing unique serials
+    ["in-serial", "in-sku", "in-rego", "in-book", "in-printed-notes", "in-notes"].forEach(id => document.getElementById(id).value = "");
+    await loadBootstrap();
+}
+
+function fillSampleIntake(mode) {
+    if (mode === "gun") {
+        document.getElementById("in-serial").value = "T3X-88412";
+        document.getElementById("in-rego").value = "740192831";
+        document.getElementById("in-book").value = "BK-2026-102";
+        document.getElementById("in-make").value = "Tikka";
+        document.getElementById("in-model").value = "T3x Lite Stainless";
+        document.getElementById("in-calibre").value = "243 WIN";
+        document.getElementById("in-action").value = "Bolt Action";
+        document.getElementById("in-barrel").value = "22\"";
+        document.getElementById("in-capacity").value = "3-Shot";
+        document.getElementById("in-category").value = "Cat B";
+        document.getElementById("in-storage-type").value = "Sale (Floor Stock)";
+        document.getElementById("in-condition").value = "New";
+        document.getElementById("in-price").value = "1590";
+        document.getElementById("in-was-price").value = "1750";
+    } else if (mode === "storage") {
+        document.getElementById("in-serial").value = "STR-90412";
+        document.getElementById("in-make").value = "Lithgow Arms";
+        document.getElementById("in-model").value = "LA101 Crossover";
+        document.getElementById("in-calibre").value = "22LR";
+        document.getElementById("in-action").value = "Bolt Action";
+        document.getElementById("in-category").value = "Cat A";
+        document.getElementById("in-storage-type").value = "Customer Storage";
+        document.getElementById("in-condition").value = "Gun Storage";
+        document.getElementById("in-owner-name").value = "Tania Blewitt";
+        document.getElementById("in-owner-phone").value = "0411 222 333";
+        document.getElementById("in-price").value = "0";
+    } else if (mode === "consign") {
+        document.getElementById("in-serial").value = "CSG-55201";
+        document.getElementById("in-make").value = "Beretta";
+        document.getElementById("in-model").value = "686 Silver Pigeon I";
+        document.getElementById("in-calibre").value = "12G";
+        document.getElementById("in-action").value = "Under/Over";
+        document.getElementById("in-category").value = "Cat A";
+        document.getElementById("in-storage-type").value = "Consignment Sale";
+        document.getElementById("in-condition").value = "Consignment";
+        document.getElementById("in-owner-name").value = "Ian Stewart Shannon";
+        document.getElementById("in-owner-phone").value = "0433 444 555";
+        document.getElementById("in-price").value = "2450";
+    }
+    toggleOwnerIntakeFields();
+    updateLiveLabelPreview();
+}
+
+function clearIntakeForm() {
+    ["in-serial","in-sku","in-rego","in-book","in-make","in-model","in-calibre","in-action","in-barrel","in-capacity","in-owner-name","in-owner-phone","in-printed-notes","in-notes"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("in-price").value = "0";
+    document.getElementById("in-was-price").value = "0";
+    updateLiveLabelPreview();
+}
+
+// --- Laybys & Consignments ---
+function renderLaybysAndConsignments() {
+    const laybys = STATE.firearms.filter(f => f.status === "In Store" && f.storage_type === "Layby");
+    const consigns = STATE.firearms.filter(f => f.storage_type === "Consignment Sale" || f.condition === "Consignment");
+    document.getElementById("nav-count-laybys").textContent = laybys.length + consigns.length;
+
+    document.getElementById("laybys-tbody").innerHTML = laybys.map(f => `
+        <tr>
+            <td class="mono">${f.serial}</td>
+            <td><strong>${f.make} ${f.model}</strong> (${f.calibre})</td>
+            <td><span class="badge badge-info">${f.category}</span></td>
+            <td>${f.customer_name || "—"}<div style="font-size:11px;color:var(--text-muted);">${f.customer_phone || ""}</div></td>
+            <td>${f.customer_licence_no || "—"} (${f.customer_licence_cats || "—"})</td>
+            <td class="mono">${f.pta_number || "<span class='badge badge-warn'>Missing PTA</span>"}</td>
+            <td><span class="badge badge-purple">${f.layby_stage || "Waiting for PTA"}</span></td>
+            <td><strong>$${Number(f.price || 0).toFixed(2)}</strong></td>
+            <td><button class="btn btn-success" onclick="openDossierModal('${f.serial}')">🛡️ PTA Release</button></td>
+        </tr>
+    `).join("");
+
+    document.getElementById("consignments-tbody").innerHTML = consigns.map(f => `
+        <tr>
+            <td class="mono">${f.serial}</td>
+            <td><strong>${f.make} ${f.model}</strong> (${f.calibre})</td>
+            <td>${f.consignor_name || f.customer_name || "—"} (${f.consignor_phone || f.customer_phone || ""})</td>
+            <td><span class="badge">${f.status}</span></td>
+            <td>$${Number(f.price || 0).toFixed(2)}</td>
+            <td>${f.commission_pct}% (Min $${f.commission_min_fee}) = <strong>$${Number(f.calculated_commission || 0).toFixed(2)}</strong></td>
+            <td><strong style="color:var(--success);">$${Number(f.consignor_net_payout || 0).toFixed(2)}</strong></td>
+            <td><span class="badge ${f.payout_status === 'Paid & Settled' ? 'badge-success' : 'badge-warn'}">${f.payout_status}</span></td>
+            <td>
+                <button class="btn btn-primary" onclick="settleConsignment('${f.serial}')">✓ Mark Paid</button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+async function settleConsignment(serial) {
+    await fetch(`/api/consignments/${encodeURIComponent(serial)}/settle?status=Paid%20%26%20Settled`, { method: "POST" });
+    await loadBootstrap();
+}
+
+// --- Special Orders ---
+function renderSpecialOrders() {
+    const active = STATE.special_orders.filter(o => o.order_status !== "Fulfilled / Converted");
+    document.getElementById("nav-count-orders").textContent = active.length;
+    document.getElementById("special-orders-tbody").innerHTML = STATE.special_orders.map(o => `
+        <tr>
+            <td class="mono">${o.order_id}</td>
+            <td><strong>${o.customer_name}</strong><div style="font-size:11px;color:var(--text-muted);">${o.customer_phone || ""} • Lic: ${o.customer_licence_no || "—"}</div></td>
+            <td><strong>${o.make} ${o.model}</strong> (${o.calibre}) <span class="badge badge-info">${o.category}</span></td>
+            <td>${o.supplier_name}<div class="mono" style="font-size:11px;">${o.supplier_po_ref || "—"}</div></td>
+            <td>${o.estimated_arrival_date || "TBA"}</td>
+            <td>Dep: $${Number(o.deposit_paid).toFixed(2)} / <strong>$${Number(o.total_price).toFixed(2)}</strong></td>
+            <td class="mono">PTA: ${o.pta_number || "—"}<br>S/N: ${o.serial_number || "—"}</td>
+            <td><span class="badge badge-purple">${o.order_status}</span></td>
+            <td>
+                ${o.order_status !== "Fulfilled / Converted" ? `<button class="btn btn-success" onclick="convertSpecialOrder('${o.order_id}','${o.serial_number || ''}')">⚡ Convert to Stock</button>` : `<span class="badge badge-success">Converted</span>`}
+            </td>
+        </tr>
+    `).join("");
+}
+
+async function saveSpecialOrder() {
+    const payload = {
+        customer_name: document.getElementById("so-cust-name").value,
+        customer_phone: document.getElementById("so-cust-phone").value,
+        customer_licence_no: document.getElementById("so-cust-lic").value,
+        make: document.getElementById("so-make").value,
+        model: document.getElementById("so-model").value,
+        calibre: document.getElementById("so-calibre").value,
+        category: document.getElementById("so-cat").value,
+        supplier_name: document.getElementById("so-supplier").value,
+        supplier_po_ref: document.getElementById("so-po").value,
+        estimated_arrival_date: document.getElementById("so-eta").value,
+        deposit_paid: parseFloat(document.getElementById("so-deposit").value || 0),
+        total_price: parseFloat(document.getElementById("so-total").value || 0),
+        pta_number: document.getElementById("so-pta").value,
+        serial_number: document.getElementById("so-serial").value,
+        order_status: document.getElementById("so-status").value
+    };
+    if (!payload.customer_name || !payload.make || !payload.model) return alert("Customer, Make, and Model required.");
+    await fetch("/api/special-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+async function convertSpecialOrder(orderId, existingSerial) {
+    const serial = prompt("Confirm or enter arrived Firearm Serial Number:", existingSerial || "");
+    if (!serial) return;
+    const book = prompt("Enter NSW Dealer Book Reference (e.g. BK-2026-105):", "BK-2026-");
+    const res = await fetch(`/api/special-orders/${encodeURIComponent(orderId)}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            serial_number: serial,
+            book_no: book || "",
+            target_location_id: "SAFE-01",
+            storage_type: "Layby",
+            operator_name: STATE.activeOperator
+        })
+    });
+    if (!res.ok) {
+        const d = await res.json();
+        return alert(d.detail || "Conversion failed");
+    }
+    await loadBootstrap();
+}
+
+// --- Workshop & Gunsmithing ---
+function renderWorkshop() {
+    document.getElementById("nav-count-repairs").textContent = STATE.work_orders.filter(w => w.status !== "Completed").length;
+    document.getElementById("workshop-tbody").innerHTML = STATE.work_orders.map(w => {
+        const tot = Number(w.labor_cost || 0) + Number(w.parts_cost || 0);
+        return `
+        <tr>
+            <td class="mono">${w.job_id}</td>
+            <td class="mono">${w.firearm_serial || "—"}</td>
+            <td><strong>${w.customer_name}</strong><div style="font-size:11px;color:var(--text-muted);">${w.customer_phone || ""}</div></td>
+            <td><strong>${w.make_model}</strong><div style="font-size:11px;">${w.cal_cat || ""}</div></td>
+            <td><strong>${w.service_type}</strong><div style="font-size:11px;color:var(--text-muted);">${w.fault_description || ""} ${w.parts_used ? '• Parts: ' + w.parts_used : ''}</div></td>
+            <td><span class="badge">${w.test_fired}</span></td>
+            <td><strong>$${tot.toFixed(2)}</strong></td>
+            <td><span class="badge badge-warn">${w.status}</span></td>
+            <td><button class="btn" onclick="printRepairTicketTag('${w.job_id}')">🖨️ Repair Tag</button></td>
+        </tr>`;
+    }).join("");
+}
+
+async function saveWorkOrder() {
+    const payload = {
+        firearm_serial: document.getElementById("wo-serial").value,
+        customer_name: document.getElementById("wo-cust").value,
+        customer_phone: document.getElementById("wo-phone").value,
+        make_model: document.getElementById("wo-makemodel").value,
+        cal_cat: document.getElementById("wo-calcat").value,
+        service_type: document.getElementById("wo-type").value,
+        fault_description: document.getElementById("wo-desc").value,
+        parts_used: document.getElementById("wo-parts").value,
+        labor_cost: parseFloat(document.getElementById("wo-labor").value || 0),
+        parts_cost: parseFloat(document.getElementById("wo-parts-cost").value || 0),
+        status: document.getElementById("wo-status").value,
+        test_fired: document.getElementById("wo-testfired").value,
+        operator_name: STATE.activeOperator
+    };
+    if (!payload.customer_name || !payload.make_model) return alert("Customer and Firearm Make/Model required.");
+    await fetch("/api/work-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+function printRepairTicketTag(jobId) {
+    const w = STATE.work_orders.find(x => x.job_id === jobId);
+    if (!w) return;
+    const tot = Number(w.labor_cost || 0) + Number(w.parts_cost || 0);
+    const mount = document.getElementById("print-mount");
+    mount.innerHTML = "";
+    const box = document.createElement("div");
+    box.className = "thermal-preview-box";
+    box.innerHTML = `
+        <div>
+            <div style="background:#000;color:#fff;text-align:center;font-weight:900;padding:4px;font-size:13px;">
+                GUNSMITH WORKSHOP TICKET
+            </div>
+            <div style="text-align:center;font-size:18px;font-weight:900;margin:4px 0;">${w.job_id}</div>
+            <div style="border:1.5px solid #000;padding:4px;font-size:11px;font-weight:800;">
+                <div>CLIENT: ${w.customer_name}</div>
+                <div>PHONE: ${w.customer_phone || "—"}</div>
+                <div>S/N: ${w.firearm_serial || "—"}</div>
+            </div>
+            <div style="margin:5px 0;font-size:12px;font-weight:900;">${w.make_model} (${w.cal_cat})</div>
+            <div style="font-size:11px;font-weight:700;">SERVICE: ${w.service_type}</div>
+            <div style="font-size:10px;margin-top:3px;">${w.fault_description || ""}</div>
+            <div style="border-top:2px solid #000;margin-top:6px;padding-top:4px;text-align:center;font-size:16px;font-weight:900;">
+                TOTAL: $${tot.toFixed(2)}
+            </div>
+        </div>
+        <div style="text-align:center;">
+            <div id="rep-svg-slot"></div>
+            <div style="font-family:monospace;font-size:11px;font-weight:900;">${w.job_id}</div>
+        </div>
+    `;
+    mount.appendChild(box);
+    box.querySelector("#rep-svg-slot").appendChild(createCode128SVG(w.job_id, 46));
+    window.print();
+}
+
+// --- Powder, Primers & Ammo (NEQ) ---
+function renderConsumables() {
+    document.getElementById("neq-curr-val").textContent = STATE.neq_summary.total_neq_kg;
+    document.getElementById("neq-max-val").textContent = STATE.neq_summary.max_neq_kg;
+    document.getElementById("neq-pct-badge").textContent = `${STATE.neq_summary.pct}% Statutory Limit`;
+    const bar = document.getElementById("neq-progress-bar");
+    bar.style.width = `${Math.min(STATE.neq_summary.pct, 100)}%`;
+    bar.style.background = STATE.neq_summary.pct > 90 ? "var(--danger)" : "var(--primary)";
+
+    document.getElementById("consumables-tbody").innerHTML = STATE.consumables.map(c => {
+        const rowNeq = (Number(c.quantity || 0) * Number(c.unit_neq_kg || 0)).toFixed(2);
+        const low = c.quantity <= c.min_stock_alert;
+        return `
+        <tr>
+            <td class="mono">${c.sku}</td>
+            <td><span class="badge badge-info">${c.item_type}</span></td>
+            <td><strong>${c.brand} ${c.name}</strong></td>
+            <td>${c.calibre_or_grade || "—"}</td>
+            <td class="mono">${c.lot_number || "—"}</td>
+            <td><strong style="color:${low ? 'var(--danger)' : 'var(--text)'};">${c.quantity} ${low ? '⚠️ LOW' : ''}</strong></td>
+            <td>${c.unit_neq_kg} kg</td>
+            <td><strong>${rowNeq} kg</strong></td>
+            <td>$${Number(c.price || 0).toFixed(2)}</td>
+            <td>
+                <button class="btn" onclick="adjustConsumable(${c.id}, -1)">-1</button>
+                <button class="btn" onclick="adjustConsumable(${c.id}, 1)">+1</button>
+            </td>
+        </tr>`;
+    }).join("");
+}
+
+async function saveConsumable() {
+    const payload = {
+        sku: document.getElementById("cm-sku").value,
+        brand: document.getElementById("cm-brand").value,
+        name: document.getElementById("cm-name").value,
+        item_type: document.getElementById("cm-type").value,
+        calibre_or_grade: document.getElementById("cm-grade").value,
+        lot_number: document.getElementById("cm-lot").value,
+        quantity: parseInt(document.getElementById("cm-qty").value || 0),
+        unit_neq_kg: parseFloat(document.getElementById("cm-neq").value || 0),
+        price: parseFloat(document.getElementById("cm-price").value || 0)
+    };
+    if (!payload.sku || !payload.brand || !payload.name) return alert("SKU, Brand, and Name required.");
+    await fetch("/api/consumables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+async function adjustConsumable(cid, delta) {
+    await fetch(`/api/consumables/${cid}/adjust?delta=${delta}`, { method: "POST" });
+    await loadBootstrap();
+}
+
+// --- NSW Bound Book (A&D) ---
+function renderBoundBookTable() {
+    const m = document.getElementById("bb-month-filter").value;
+    const rows = STATE.firearms.filter(r => {
+        if (!m) return true;
+        return String(r.date_acquired || "").startsWith(m) || String(r.date_disposed || "").startsWith(m);
+    });
+    document.getElementById("boundbook-tbody").innerHTML = rows.map(r => `
+        <tr class="clickable-row" onclick="openDossierModal('${r.serial}')">
+            <td class="mono">${r.book_no || "—"}</td>
+            <td class="mono">${r.rego_no || "—"}</td>
+            <td class="mono" style="color:var(--primary);">${r.serial}</td>
+            <td><strong>${r.make} ${r.model}</strong> (${r.calibre} • ${r.action || "—"})</td>
+            <td><span class="badge badge-info">${r.category}</span></td>
+            <td>${r.date_acquired || "—"}<div style="font-size:11px;color:var(--text-muted);">${r.supplier_name || r.consignor_name || r.customer_name || "Dealer Intake"}</div></td>
+            <td><span class="badge ${r.status === 'In Store' ? 'badge-success' : 'badge-warn'}">${r.status} (${r.current_location_id})</span></td>
+            <td>${r.date_disposed || "—"}</td>
+            <td>${r.disposed_to_name || "—"} ${r.disposed_to_licence ? `(${r.disposed_to_licence})` : ""}</td>
+            <td class="mono">${r.pta_number || "—"}</td>
+        </tr>
+    `).join("");
+}
+
+function exportBoundBookCSV() {
+    const m = document.getElementById("bb-month-filter").value;
+    window.location.href = `/api/bound-book/export${m ? '?month=' + encodeURIComponent(m) : ''}`;
+}
+
+// --- Interstate & NSW -> QLD Transfer Labels ---
+function renderShipments() {
+    document.getElementById("shipments-tbody").innerHTML = STATE.shipments.map(s => `
+        <tr>
+            <td class="mono"><strong>${s.shipment_no}</strong><div style="font-size:11px;color:var(--text-muted);">${s.destination_state} Transfer</div></td>
+            <td><strong>${s.recipient_business || s.recipient_name}</strong><div style="font-size:11px;">Lic: ${s.recipient_licence} • ${s.destination_address}</div></td>
+            <td>${s.end_customer_name || "—"}<div class="mono" style="font-size:11px;">Lic: ${s.end_customer_licence || "—"} / PTA: ${s.end_customer_pta || "—"}</div></td>
+            <td>${(s.items || []).map(i => `<span class="badge mono">${i.serial} (${i.make} ${i.model})</span>`).join(" ")}</td>
+            <td>${s.carrier_name}<div class="mono" style="font-size:11px;">${s.tracking_number}</div></td>
+            <td><span class="badge ${s.status.includes('Delivered') ? 'badge-success' : 'badge-warn'}">${s.status}</span></td>
+            <td>
+                <button class="btn btn-primary" onclick="printQLDInterstateTransferTag('${s.shipment_no}')">🖨️ QLD / Post Label</button>
+                <a class="btn" href="/delivery/${s.shipment_no}" target="_blank">📱 Sign-Off Portal</a>
+            </td>
+        </tr>
+    `).join("");
+}
+
+async function createInterstateShipment() {
+    const serials = document.getElementById("tr-serials").value.split(",").map(s => s.trim()).filter(Boolean);
+    const payload = {
+        recipient_business: document.getElementById("tr-biz").value,
+        recipient_name: document.getElementById("tr-contact").value || document.getElementById("tr-biz").value,
+        recipient_licence: document.getElementById("tr-lic").value,
+        recipient_phone: document.getElementById("tr-phone").value,
+        destination_state: document.getElementById("tr-state").value,
+        destination_address: document.getElementById("tr-addr").value,
+        end_customer_name: document.getElementById("tr-cust-name").value,
+        end_customer_phone: document.getElementById("tr-cust-phone").value,
+        end_customer_licence: document.getElementById("tr-cust-lic").value,
+        end_customer_pta: document.getElementById("tr-cust-pta").value,
+        carrier_name: document.getElementById("tr-carrier").value,
+        firearm_serials: serials
+    };
+    if (!payload.recipient_business || !payload.recipient_licence || !payload.destination_address || !serials.length) {
+        return alert("Receiving Dealer, Dealer Licence, Address, and at least 1 Firearm Serial are required.");
+    }
+    await fetch("/api/shipments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+function printQLDInterstateTransferTag(shipmentNo) {
+    const s = STATE.shipments.find(x => x.shipment_no === shipmentNo);
+    if (!s) return;
+    const gun = (s.items && s.items[0]) || { serial: s.shipment_no, make: "See Manifest", model: "", calibre: "", action: "", category: "", book_no: "" };
+    const mount = document.getElementById("print-mount");
+    mount.innerHTML = "";
+
+    const box = document.createElement("div");
+    box.className = "thermal-preview-box";
+    box.style.minHeight = "95mm";
+    box.innerHTML = `
+        <div>
+            <div style="background:#000;color:#fff;text-align:center;font-size:10px;font-weight:900;padding:4px;">
+                [RESTRICTED GOODS] INTERSTATE WEAPONS TRANSIT (NSW ➔ ${s.destination_state || 'QLD'})
+            </div>
+            <div style="border-bottom:1.5px solid #000;padding:3px 0;font-size:10px;">
+                <div style="font-weight:900;">FROM DEALER (CONSIGNOR):</div>
+                <div><strong>${STATE.settings.store_name || "Tenterfield Firearms"}</strong> (${STATE.settings.dealer_licence || "NSW-DEALER"})</div>
+                <div>${STATE.settings.store_address || ""} • ${STATE.settings.store_phone || ""}</div>
+            </div>
+            <div style="border-bottom:1.5px solid #000;padding:3px 0;font-size:10px;">
+                <div style="font-weight:900;">TO RECEIVING DEALER (CONSIGNEE):</div>
+                <div style="font-size:12px;font-weight:900;">${s.recipient_business || s.recipient_name}</div>
+                <div><strong>${s.destination_state} Dealer Licence:</strong> ${s.recipient_licence}</div>
+                <div>${s.destination_address} ${s.recipient_phone ? '• ' + s.recipient_phone : ''}</div>
+            </div>
+            <div style="border-bottom:1.5px solid #000;padding:3px 0;font-size:10px;">
+                <div style="font-weight:900;">ACQUIRING CUSTOMER / END USER:</div>
+                <div><strong>Name:</strong> ${s.end_customer_name || "Dealer Stock Transfer"}</div>
+                <div><strong>Licence / PTA:</strong> ${s.end_customer_licence || "—"} / ${s.end_customer_pta || "—"}</div>
+                <div><strong>Phone:</strong> ${s.end_customer_phone || "—"}</div>
+            </div>
+            <div style="padding:3px 0;font-size:10px;">
+                <div style="font-weight:900;">FIREARM PARTICULARS (${(s.items || []).length} UNIT):</div>
+                <div><strong>${gun.make} ${gun.model}</strong> (${gun.calibre} • ${gun.action || ""} • ${gun.category || ""})</div>
+                <div style="font-family:monospace;font-weight:900;">Serial: ${gun.serial} • Book: ${gun.book_no || "—"}</div>
+            </div>
+        </div>
+        <div style="text-align:center;border-top:2px solid #000;padding-top:4px;">
+            <div id="qld-svg-slot"></div>
+            <div style="font-family:monospace;font-size:11px;font-weight:900;">${gun.serial}</div>
+            <div style="font-size:9px;font-weight:900;margin-top:2px;">NOTICE: Authorised Licensed Recipient Handover Only</div>
+        </div>
+    `;
+    mount.appendChild(box);
+    box.querySelector("#qld-svg-slot").appendChild(createCode128SVG(gun.serial, 44));
+    window.print();
+}
+
+// --- Customers & Suppliers ---
+function renderCustomersAndSuppliers() {
+    document.getElementById("customers-tbody").innerHTML = STATE.customers.map(c => `
+        <tr>
+            <td><strong>${c.name}</strong></td>
+            <td>${c.phone || "—"}</td>
+            <td class="mono">${c.licence_no || "—"}</td>
+            <td><span class="badge badge-info">${c.licence_categories || "Cat A, Cat B"}</span></td>
+            <td><span class="badge badge-success">${c.active_gun_count || 0} Guns</span></td>
+            <td><strong>$${Number(c.store_credit || 0).toFixed(2)}</strong></td>
+        </tr>
+    `).join("");
+
+    document.getElementById("suppliers-tbody").innerHTML = STATE.suppliers.map(s => `
+        <tr>
+            <td><strong>${s.name}</strong></td>
+            <td class="mono">${s.account_no || "—"}</td>
+            <td class="mono">${s.dealer_licence_no || "—"}</td>
+            <td>${s.phone || ""} ${s.email ? '• ' + s.email : ''}</td>
+        </tr>
+    `).join("");
+}
+
+async function saveCustomer() {
+    const payload = {
+        name: document.getElementById("c-name").value,
+        phone: document.getElementById("c-phone").value,
+        licence_no: document.getElementById("c-lic").value,
+        licence_categories: document.getElementById("c-cats").value,
+        licence_expiry: document.getElementById("c-exp").value,
+        store_credit: parseFloat(document.getElementById("c-credit").value || 0)
+    };
+    if (!payload.name) return alert("Customer Name is required.");
+    await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+async function saveSupplier() {
+    const payload = {
+        name: document.getElementById("sup-name").value,
+        account_no: document.getElementById("sup-acct").value,
+        dealer_licence_no: document.getElementById("sup-lic").value,
+        phone: document.getElementById("sup-contact").value
+    };
+    if (!payload.name) return alert("Supplier Name is required.");
+    await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+// --- Settings, Staff, Backups & Modals ---
+function renderSettingsTab() {
+    document.getElementById("set-store-name").value = STATE.settings.store_name || "";
+    document.getElementById("set-dealer-lic").value = STATE.settings.dealer_licence || "";
+    document.getElementById("set-store-addr").value = STATE.settings.store_address || "";
+    document.getElementById("set-store-phone").value = STATE.settings.store_phone || "";
+    document.getElementById("set-max-neq").value = STATE.settings.max_neq_kg || "50.0";
+    document.getElementById("set-barcode-src").value = STATE.settings.barcode_source || "serial";
+
+    document.getElementById("backups-list").innerHTML = STATE.backups.map(b =>
+        `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span class="mono">${b}</span>
+            <a href="/api/backups/download/${encodeURIComponent(b)}" class="btn">Download</a>
+        </div>`
+    ).join("") || "No snapshots yet.";
+
+    document.getElementById("staff-list-box").innerHTML = STATE.staff.map(s =>
+        `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <strong>${s.name}</strong> (${s.role}) — Badge: <span class="mono">${s.badge_code}</span>
+        </div>`
+    ).join("");
+}
+
+async function saveStoreSettings() {
+    const payload = {
+        store_name: document.getElementById("set-store-name").value,
+        dealer_licence: document.getElementById("set-dealer-lic").value,
+        store_address: document.getElementById("set-store-addr").value,
+        store_phone: document.getElementById("set-store-phone").value,
+        max_neq_kg: document.getElementById("set-max-neq").value,
+        barcode_source: document.getElementById("set-barcode-src").value
+    };
+    await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+async function triggerManualBackup() {
+    await fetch("/api/backups/create", { method: "POST" });
+    await loadBootstrap();
+}
+
+async function addStaffOperator() {
+    const payload = {
+        name: document.getElementById("stf-name").value,
+        role: document.getElementById("stf-role").value,
+        pin: document.getElementById("stf-pin").value,
+        badge_code: document.getElementById("stf-badge").value
+    };
+    if (!payload.name || !payload.pin) return alert("Name and PIN required.");
+    await fetch("/api/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    await loadBootstrap();
+}
+
+function openClosingSweepModal() {
+    const modal = document.getElementById("sweep-modal");
+    const body = document.getElementById("sweep-modal-body");
+    if (!STATE.closing_sweep.length) {
+        body.innerHTML = `<div class="badge badge-success" style="padding:12px;font-size:14px;">✓ All floor display and workbench firearms are secured in overnight safes!</div>`;
+    } else {
+        body.innerHTML = `
+            <div style="margin-bottom:10px;">
+                <button class="btn btn-primary" onclick="sweepAllToSafe01()">🔒 Sweep All ${STATE.closing_sweep.length} Guns into SAFE-01 Now</button>
+            </div>
+            <table>
+                <thead><tr><th>Serial</th><th>Firearm</th><th>Current Un-Safed Location</th></tr></thead>
+                <tbody>
+                    ${STATE.closing_sweep.map(g => `<tr><td class="mono">${g.serial}</td><td>${g.make} ${g.model}</td><td><span class="badge badge-warn">${g.current_location_id}</span></td></tr>`).join("")}
+                </tbody>
+            </table>
+        `;
+    }
+    modal.classList.add("open");
+}
+
+async function sweepAllToSafe01() {
+    const serials = STATE.closing_sweep.map(g => g.serial);
+    await fetch("/api/scan/bulk-move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serials, target_location_id: "SAFE-01", operator_name: STATE.activeOperator })
+    });
+    document.getElementById("sweep-modal").classList.remove("open");
+    await loadBootstrap();
+}
+
+function alertDuplicateSerials() {
+    const msg = STATE.duplicate_serials.map(d => `Normalized Serial ${d.normalized}: ${d.serials.join(", ")}`).join("\n");
+    alert(`⚠️ DUPLICATE SERIAL COLLISIONS DETECTED:\n\n${msg}`);
+}
+
+function toggleAuditMode() {
+    document.body.classList.toggle("audit-mode");
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle("dark-mode");
+    localStorage.setItem("cyanstock_dark", document.body.classList.contains("dark-mode") ? "1" : "0");
+}
+
+function openStaffPinModal() {
+    document.getElementById("pin-input").value = "";
+    document.getElementById("pin-modal").classList.add("open");
+    setTimeout(() => document.getElementById("pin-input").focus(), 50);
+}
+
+function verifyStaffPin() {
+    const val = document.getElementById("pin-input").value.trim().toUpperCase();
+    const matched = STATE.staff.find(s => s.pin === val || s.badge_code.toUpperCase() === val);
+    if (!matched) return alert("Invalid PIN or Badge Code.");
+    STATE.activeOperator = matched.name;
+    localStorage.setItem("cyanstock_operator", matched.name);
+    document.getElementById("active-operator-label").textContent = matched.name;
+    document.getElementById("pin-modal").classList.remove("open");
+}
+
+function openAddSafeModal() {
+    document.getElementById("safe-modal").classList.add("open");
+}
+
+async function saveSafeLocation() {
+    const payload = {
+        id: document.getElementById("sf-id").value,
+        name: document.getElementById("sf-name").value,
+        category: document.getElementById("sf-cat").value,
+        max_capacity: parseInt(document.getElementById("sf-cap").value || 30),
+        color: document.getElementById("sf-color").value,
+        notes: document.getElementById("sf-notes").value
+    };
+    if (!payload.id || !payload.name) return alert("Safe ID and Name required.");
+    await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    document.getElementById("safe-modal").classList.remove("open");
+    await loadBootstrap();
+}
+
+function switchTab(tabId, btnEl) {
+    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+    const target = document.getElementById(tabId);
+    if (target) target.classList.add("active");
+    if (btnEl) {
+        document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+        btnEl.classList.add("active");
+    }
+}
+
+// --- Unfocused Global Hardware Barcode Wedge Trap ---
+let wedgeBuffer = "";
+let wedgeTimer = null;
+window.addEventListener("keydown", async (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        printLiveLabelPreview();
+        return;
+    }
+    const activeTag = (document.activeElement && document.activeElement.tagName) || "";
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(activeTag)) return;
+
+    if (e.key === "Enter" && wedgeBuffer.length >= 4) {
+        const scanned = wedgeBuffer.trim().toUpperCase();
+        wedgeBuffer = "";
+        if (scanned.startsWith("STF:")) {
+            const stf = STATE.staff.find(s => s.badge_code.toUpperCase() === scanned);
+            if (stf) {
+                STATE.activeOperator = stf.name;
+                localStorage.setItem("cyanstock_operator", stf.name);
+                document.getElementById("active-operator-label").textContent = stf.name;
+            }
+            return;
+        }
+        if (scanned.startsWith("LOC:")) {
+            switchTab("tab-twoscan");
+            document.getElementById("scan-step2").value = scanned.replace("LOC:", "");
+            document.getElementById("twoscan-feedback").textContent = `🔒 Safe Locked: ${scanned}`;
+            return;
+        }
+        const res = await fetch(`/api/lookup/${encodeURIComponent(scanned)}`);
+        const data = await res.json();
+        if (data.matched) {
+            openDossierModal(data.firearm.serial);
+        } else if (confirm(`Scanned barcode '${scanned}' is not in CyanStock. Open Intake Studio with '${scanned}' pre-filled?`)) {
+            switchTab("tab-intake");
+            document.getElementById("in-serial").value = scanned;
+            updateLiveLabelPreview();
+        }
+        return;
+    }
+    if (e.key.length === 1) {
+        wedgeBuffer += e.key;
+        clearTimeout(wedgeTimer);
+        wedgeTimer = setTimeout(() => { wedgeBuffer = ""; }, 120);
+    }
+});
+
+if (localStorage.getItem("cyanstock_dark") === "1") {
+    document.body.classList.add("dark-mode");
+}
+window.addEventListener("DOMContentLoaded", loadBootstrap);
+</script>
+</body>
+</html>
