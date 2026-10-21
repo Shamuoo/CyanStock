@@ -3,1988 +3,878 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CyanStock v0.14.4 - Store Vault Hub</title>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<title>CyanStock v0.15.0 • Vault, Bound Book & Compliance Suite</title>
 <style>
-  :root {
-    --bg-page: #0b0f19; --bg-card: #111827; --bg-card-hover: #1e293b;
-    --border: #334155; --border-subtle: #1e293b; --text: #f8fafc;
-    --text-muted: #94a3b8; --accent: #0284c7; --accent-glow: rgba(2,132,199,0.15);
-    --success: #22c55e; --success-bg: rgba(34,197,94,0.1);
-    --danger: #ef4444; --danger-bg: rgba(239,68,68,0.15); --warning: #f59e0b;
-  }
-  body.light-theme {
-    --bg-page: #f8fafc; --bg-card: #ffffff; --bg-card-hover: #f1f5f9;
-    --border: #cbd5e1; --border-subtle: #e2e8f0; --text: #0f172a;
-    --text-muted: #64748b; --accent: #0284c7; --accent-glow: rgba(2,132,199,0.1);
-    --success: #16a34a; --success-bg: rgba(22,163,74,0.1);
-    --danger: #dc2626; --danger-bg: rgba(220,38,38,0.1);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  body { background: var(--bg-page); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
-  
-  header { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
-  .brand-title { font-size: 1.25rem; font-weight: 900; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .version-tag { font-size: 0.72rem; background: var(--accent); color: #fff; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
-  
-  .top-search-wrap { position: relative; flex: 1; max-width: 440px; }
-  .top-search-input { width: 100%; padding: 8px 14px 8px 34px; background: var(--bg-page); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-size: 0.88rem; outline: none; }
-  .top-search-input:focus { border-color: var(--accent); }
-  .top-search-icon { position: absolute; left: 11px; top: 9px; font-size: 0.85rem; color: var(--text-muted); pointer-events: none; }
-  .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; margin-top: 4px; max-height: 400px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: none; z-index: 200; }
-  .search-section-hdr { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); padding: 8px 12px 4px 12px; background: rgba(0,0,0,0.1); }
-  .search-result-item { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
-  .search-result-item:hover { background: var(--bg-card-hover); }
-
-  nav { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 8px; overflow-x: auto; }
-  .nav-tab { padding: 14px 16px; font-size: 0.88rem; font-weight: 700; color: var(--text-muted); background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
-  .nav-tab:hover { color: var(--text); }
-  .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
-
-  main { flex: 1; padding: 24px; display: none; }
-  main.active { display: block; }
-
-  .btn { padding: 8px 14px; font-size: 0.82rem; font-weight: 700; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--accent); color: #fff; transition: 0.15s; }
-  .btn:hover { filter: brightness(1.1); }
-  .btn-outline { background: transparent; color: var(--text); border-color: var(--border); }
-  .btn-outline:hover { background: var(--border-subtle); }
-  .btn-sm { padding: 4px 8px; font-size: 0.75rem; }
-  .btn-copy { background: var(--border-subtle); color: var(--accent); border: 1px solid var(--border); padding: 3px 6px; border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-weight: 700; }
-
-  .operator-pill { display: flex; align-items: center; gap: 8px; background: var(--bg-page); border: 1px solid var(--border); padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 0.82rem; }
-  .role-tag { font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
-  .role-admin { background: #ef4444; color: #fff; }
-  .role-emp { background: #0284c7; color: #fff; }
-
-  .kpi-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
-  .kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; cursor: pointer; }
-  .kpi-card:hover { border-color: var(--accent); }
-  .kpi-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
-  .kpi-value { font-size: 1.6rem; font-weight: 900; margin-top: 4px; }
-
-  .safes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .safe-card-box { background: var(--bg-card); border: 2px solid var(--border); border-radius: 8px; padding: 18px; cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
-  .safe-card-box:hover { transform: translateY(-2px); border-color: var(--accent); }
-  .safe-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .progress-bar-wrap { width: 100%; height: 12px; background: var(--border-subtle); border-radius: 6px; overflow: hidden; margin: 12px 0 8px 0; }
-  .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
-
-  .two-scan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
-  .scan-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: 8px; padding: 24px; }
-  .scan-card.active-step { border-color: var(--accent); box-shadow: 0 0 16px var(--accent-glow); }
-  .scan-input-lg { width: 100%; padding: 14px; font-size: 1.2rem; font-weight: 700; background: var(--bg-page); color: var(--text); border: 2px solid var(--border); border-radius: 6px; outline: none; margin-top: 8px; }
-
-  .bulk-floating-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bg-card); border: 2px solid var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,0.6); padding: 12px 24px; border-radius: 40px; display: none; align-items: center; gap: 16px; z-index: 1000; }
-
-  .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th { text-align: left; padding: 12px 16px; background: rgba(0,0,0,0.08); color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 700; }
-  td { padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
-  tr:hover td { background: var(--bg-card-hover); }
-
-  .intake-studio-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
-  .form-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .form-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .form-field label { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
-  .form-field input, .form-field select, .form-field textarea { padding: 9px; background: var(--bg-page); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; outline: none; }
-
-  /* 62mm Continuous Tag */
-  .tag-preview-canvas { background: #fff; color: #000; width: 320px; padding: 16px; border: 2px solid #000; border-radius: 6px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .tag-store-hdr { font-size: 16px; font-weight: 900; text-align: center; border-bottom: 2px solid #000; padding-bottom: 4px; margin-bottom: 8px; }
-  .tag-badges-strip { display: flex; justify-content: space-between; font-size: 11px; font-weight: 800; margin-bottom: 8px; }
-  .tag-badge { background: #000; color: #fff; padding: 2px 6px; border-radius: 2px; }
-  .tag-prod-title { font-size: 18px; font-weight: 900; line-height: 1.15; margin-bottom: 4px; }
-  .tag-specs { font-size: 12px; font-weight: 800; color: #111; margin-bottom: 8px; }
-  .tag-price-row { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
-  .tag-price { font-size: 22px; font-weight: 900; }
-
-  /* 62mm x 80mm Safe Placard */
-  .placard-canvas-62x80 { background: #fff; color: #000; width: 62mm; height: 80mm; padding: 4mm; border: 2mm solid #000; border-radius: 4px; margin: 0 auto; display: none; flex-direction: column; justify-content: space-between; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  .plc-banner-black { background: #000; color: #fff; text-align: center; padding: 5px 2px; font-size: 15px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 2px; }
-  .plc-barcode-wrap { text-align: center; margin: 2mm 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .plc-spec-strip { display: flex; justify-content: space-between; font-size: 10px; font-weight: 900; border-top: 1.5mm solid #000; padding-top: 3px; }
-
-  /* QLD Transfer Tag */
-  .qld-transfer-canvas {
-    background: #ffffff;
-    color: #000000;
-    width: 62mm;
-    padding: 3mm;
-    border: 1.5mm solid #000000;
-    border-radius: 4px;
-    margin: 0 auto;
-    display: none;
-    flex-direction: column;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  .qld-hdr-banner {
-    background: #000000;
-    color: #ffffff;
+:root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-alt: #f1f5f9;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --border: #cbd5e1;
+    --primary: #0284c7;
+    --primary-hover: #0369a1;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --purple: #8b5cf6;
+    --radius: 8px;
+}
+body.dark-mode {
+    --bg: #090d16;
+    --surface: #111827;
+    --surface-alt: #1e293b;
+    --text: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #334155;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+}
+/* Top Header */
+.top-header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--border);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+.brand-block {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.brand-title {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--text);
+}
+.brand-ver {
     font-size: 11px;
-    font-weight: 900;
-    text-align: center;
-    padding: 3px 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-radius: 2px;
-    margin-bottom: 2mm;
-  }
-  .qld-section {
-    border-bottom: 1px solid #000000;
-    padding-bottom: 2mm;
-    margin-bottom: 2mm;
-    font-size: 9px;
-    line-height: 1.25;
-  }
-  .qld-section:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-  .qld-lbl {
-    font-size: 8px;
-    font-weight: 900;
-    text-transform: uppercase;
-    color: #333333;
-  }
-  .qld-val {
-    font-size: 10px;
     font-weight: 800;
-  }
+    padding: 2px 7px;
+    border-radius: 99px;
+    background: var(--primary);
+    color: #fff;
+}
+.global-search-wrap {
+    flex: 1;
+    min-width: 240px;
+    max-width: 460px;
+    position: relative;
+}
+.global-search-wrap input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-alt);
+    color: var(--text);
+    font-weight: 600;
+}
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+/* Navigation Bar */
+.nav-bar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 18px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+.nav-tab {
+    padding: 8px 13px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.nav-tab:hover { background: var(--surface); color: var(--text); }
+.nav-tab.active {
+    background: var(--surface);
+    color: var(--primary);
+    border-color: var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.badge {
+    display: inline-block;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 99px;
+    background: var(--surface-alt);
+    color: var(--text);
+}
+.badge-danger { background: #fee2e2; color: #991b1b; }
+.badge-success { background: #d1fae5; color: #065f46; }
+.badge-warn { background: #fef3c7; color: #92400e; }
+.badge-info { background: #e0f2fe; color: #075985; }
+.badge-purple { background: #ede9fe; color: #5b21b6; }
 
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 2000; }
-  .modal-overlay.open { display: flex; }
-  .modal-box { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; width: 740px; max-width: 95vw; max-height: 90vh; overflow-y: auto; padding: 24px; }
+/* Main Container & Cards */
+.main-wrap { padding: 16px 18px 80px; max-width: 1650px; margin: 0 auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+.kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+.kpi-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+.kpi-card:hover, .kpi-card.active { border-color: var(--primary); }
+.kpi-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); }
+.kpi-val { font-size: 24px; font-weight: 900; margin-top: 2px; }
 
-  @media print {
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+}
+th {
+    background: var(--surface-alt);
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+tr.clickable-row { cursor: pointer; }
+tr.clickable-row:hover { background: var(--surface-alt); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; }
+
+/* Buttons & Inputs */
+.btn {
+    padding: 7px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.btn:hover { background: var(--surface-alt); }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-success { background: var(--success); color: #fff; border-color: var(--success); }
+.btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-warn { background: var(--warning); color: #fff; border-color: var(--warning); }
+
+input, select, textarea {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    width: 100%;
+}
+label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+/* Safe Grid */
+.safe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
+    gap: 12px;
+}
+.safe-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    cursor: pointer;
+}
+.safe-bar-bg {
+    width: 100%;
+    height: 10px;
+    background: var(--surface-alt);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+/* Modals */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+}
+.modal-backdrop.open { display: flex; }
+.modal-box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    max-width: 820px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* Floating Bulk Bar */
+.bulk-float-bar {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 99px;
+    display: none;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    z-index: 120;
+}
+
+/* Police Audit Mode Overrides */
+body.audit-mode .audit-hide { display: none !important; }
+body.audit-mode .audit-banner { display: flex !important; }
+.audit-banner {
+    display: none;
+    background: #1e3a8a;
+    color: #fff;
+    padding: 8px 18px;
+    font-weight: 800;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Thermal Label Preview Canvas (62mm & 72mm) */
+.thermal-preview-box {
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    width: 62mm;
+    min-height: 80mm;
+    padding: 3mm;
+    margin: 0 auto;
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.thermal-preview-box.profile-72mm {
+    width: 72mm;
+}
+
+@media print {
     body * { visibility: hidden !important; }
-    
-    body.print-gun-mode #thermal-tag-preview,
-    body.print-gun-mode #thermal-tag-preview * {
-      visibility: visible !important;
+    #print-mount, #print-mount * { visibility: visible !important; }
+    #print-mount {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
     }
-    body.print-gun-mode #thermal-tag-preview {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 100% !important;
-      border: none !important;
-      display: block !important;
-    }
-    
-    body.print-safe-mode #safe-placard-render-62x80,
-    body.print-safe-mode #safe-placard-render-62x80 * {
-      visibility: visible !important;
-    }
-    body.print-safe-mode #safe-placard-render-62x80 {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 62mm !important;
-      height: 80mm !important;
-      display: flex !important;
-      border: 2mm solid #000 !important;
-    }
-
-    body.print-qld-mode #qld-transfer-render,
-    body.print-qld-mode #qld-transfer-render * {
-      visibility: visible !important;
-    }
-    body.print-qld-mode #qld-transfer-render {
-      position: absolute !important;
-      left: 0 !important;
-      top: 0 !important;
-      width: 62mm !important;
-      display: flex !important;
-      border: 1.5mm solid #000000 !important;
-    }
-  }
+    @page { margin: 0; }
+}
 </style>
 </head>
 <body>
 
-<datalist id="brand-suggestions">
-  <option value="Lithgow Arms">
-  <option value="SCSA (Southern Cross Small Arms)">
-  <option value="Tikka">
-  <option value="Sako">
-  <option value="Ruger">
-  <option value="CZ">
-  <option value="Beretta">
-  <option value="Browning">
-  <option value="Winchester">
-  <option value="Remington">
-  <option value="Howa">
-  <option value="Savage Arms">
-  <option value="Mossberg">
-  <option value="Marlin">
-  <option value="Rossi">
-  <option value="Adler">
-  <option value="ATA Arms">
-  <option value="Boito">
-  <option value="Zastava">
-  <option value="BRNO">
-  <option value="Norinco">
-  <option value="Weatherby">
-  <option value="Anschutz">
-  <option value="Henry">
-  <option value="Chiappa">
-  <option value="Glock">
-  <option value="Smith & Wesson">
-  <option value="Walther">
-  <option value="Sig Sauer">
-  <option value="Colt">
-  <option value="Canik">
-  <option value="Weihrauch">
-  <option value="Gamo">
-  <option value="Hatsan">
-  <option value="Guide Sensmart">
-  <option value="Pulsar">
-  <option value="InfiRay">
-  <option value="Hikmicro">
-  <option value="Pard">
-  <option value="ZeroTech">
-  <option value="Leupold">
-  <option value="Vortex">
-  <option value="Bushnell">
-  <option value="Nightforce">
-  <option value="Schmidt & Bender">
-  <option value="Meopta">
-  <option value="Zeiss">
-  <option value="Swarovski">
-</datalist>
+<div class="audit-banner">
+    <span>🔒 NSW POLICE FIREARMS REGISTRY — READ-ONLY INSPECTION AUDIT MODE ACTIVE (Dealer Costs & Private Margins Suppressed)</span>
+    <button class="btn" onclick="toggleAuditMode()">Exit Audit Mode</button>
+</div>
 
-<header>
-  <div style="display:flex; align-items:center; gap:16px;">
-    <div class="brand-title">CyanStock <span class="version-tag">v0.14.4</span></div>
-  </div>
-
-  <div class="top-search-wrap">
-    <span class="top-search-icon">🔍</span>
-    <input type="text" id="top-search" class="top-search-input" placeholder="Search serial, barcode, customer, make, safe..." autocomplete="off" oninput="handleTopSearch()">
-    <div id="search-dropdown-menu" class="search-dropdown"></div>
-  </div>
-
-  <div style="display:flex; gap:10px; align-items:center;">
-    <div class="operator-pill" onclick="openPinModal()" title="Fast-Switch Operator">
-      <span id="op-name" style="font-weight:800;">Master Admin</span>
-      <span id="op-role" class="role-tag role-admin">Admin</span>
+<header class="top-header">
+    <div class="brand-block">
+        <span class="brand-title">CyanStock</span>
+        <span class="brand-ver">v{{ version }}</span>
+        <span id="store-badge" style="font-size:12px;font-weight:700;color:var(--text-muted);">Tenterfield Firearms</span>
     </div>
-    <button class="btn btn-outline btn-sm" onclick="toggleTheme()">☀️ Theme</button>
-    <button class="btn btn-sm" onclick="switchTab('tab-intake')">+ Add Gun</button>
-    <button class="btn btn-outline btn-sm" id="btn-settings-nav" onclick="openSettingsModal()">⚙️ Settings</button>
-  </div>
+
+    <div class="global-search-wrap">
+        <input type="text" id="global-search" placeholder="🔍 Global Search (Serial, SKU, Rego, Book, Make, Calibre, Customer) — Punctuation Agnostic..." oninput="renderArmouryTable()">
+    </div>
+
+    <div class="header-controls">
+        <button class="btn badge-warn" id="btn-closing-sweep" onclick="openClosingSweepModal()">🌙 Closing Sweep (<span id="sweep-count">0</span>)</button>
+        <button class="btn badge-danger" id="btn-dup-alert" style="display:none;" onclick="alertDuplicateSerials()">⚠️ Duplicate Serials (<span id="dup-count">0</span>)</button>
+        <button class="btn badge-info" onclick="switchTab('tab-powder')">🧨 NEQ: <span id="header-neq">0.0</span>kg</button>
+        <button class="btn" onclick="toggleAuditMode()">🛡️ Police Audit Mode</button>
+        <button class="btn" onclick="openStaffPinModal()">👤 <span id="active-operator-label">Master Admin</span></button>
+        <button class="btn" onclick="toggleDarkMode()">🌓</button>
+    </div>
 </header>
 
-<nav id="navbar">
-  <button class="nav-tab active" data-tab="tab-armoury" onclick="switchTab('tab-armoury')">Armoury Ledger</button>
-  <button class="nav-tab" data-tab="tab-two-scan" onclick="switchTab('tab-two-scan')">⚡ Two-Scan Station</button>
-  <button class="nav-tab" data-tab="tab-safes" onclick="switchTab('tab-safes')">Safes &amp; Capacities</button>
-  <button class="nav-tab" data-tab="tab-customers" onclick="switchTab('tab-customers')">👥 Customers</button>
-  <button class="nav-tab" data-tab="tab-intake" onclick="switchTab('tab-intake')">🏷️ Intake Studio</button>
+<nav class="nav-bar">
+    <button class="nav-tab active" onclick="switchTab('tab-armoury', this)">Armoury Ledger <span class="badge" id="nav-count-armoury">0</span></button>
+    <button class="nav-tab" onclick="switchTab('tab-twoscan', this)">Two-Scan & Audit</button>
+    <button class="nav-tab" onclick="switchTab('tab-safes', this)">Safes & Placards</button>
+    <button class="nav-tab audit-hide" onclick="switchTab('tab-intake', this)">+ Add Gun / CyanLabel</button>
+    <button class="nav-tab" onclick="switchTab('tab-laybys', this)">Laybys & Consignments <span class="badge badge-purple" id="nav-count-laybys">0</span></button>
+    <button class="nav-tab audit-hide" onclick="switchTab('tab-orders', this)">Special Orders <span class="badge badge-info" id="nav-count-orders">0</span></button>
+    <button class="nav-tab" onclick="switchTab('tab-workshop', this)">Workshop & Repairs <span class="badge badge-warn" id="nav-count-repairs">0</span></button>
+    <button class="nav-tab" onclick="switchTab('tab-powder', this)">Powder & Ammo (NEQ)</button>
+    <button class="nav-tab" onclick="switchTab('tab-boundbook', this)">NSW Bound Book (A&D)</button>
+    <button class="nav-tab" onclick="switchTab('tab-transit', this)">Interstate / QLD Transit</button>
+    <button class="nav-tab" onclick="switchTab('tab-customers', this)">Customers & Suppliers</button>
+    <button class="nav-tab audit-hide" onclick="switchTab('tab-settings', this)">⚙️ Settings & Backups</button>
 </nav>
 
-<!-- 1. ARMOURY LEDGER -->
-<main id="tab-armoury" class="active">
-  <div class="kpi-strip">
-    <div class="kpi-card" onclick="filterByStorage('')">
-      <div class="kpi-title">Total In Store</div>
-      <div class="kpi-value" id="kpi-total">0</div>
-    </div>
-    <div class="kpi-card" onclick="filterByStorage('Sale')">
-      <div class="kpi-title">Floor Stock (Sale)</div>
-      <div class="kpi-value" id="kpi-sale" style="color:var(--accent);">0</div>
-    </div>
-    <div class="kpi-card" onclick="filterByStorage('Customer Storage')">
-      <div class="kpi-title">Customer Storage</div>
-      <div class="kpi-value" id="kpi-storage" style="color:#a855f7;">0</div>
-    </div>
-    <div class="kpi-card" onclick="filterByStorage('Layby')">
-      <div class="kpi-title">Active Laybys</div>
-      <div class="kpi-value" id="kpi-layby" style="color:var(--warning);">0</div>
-    </div>
-    <div class="kpi-card" onclick="filterByStorage('Consignment Sale')">
-      <div class="kpi-title">Consignments</div>
-      <div class="kpi-value" id="kpi-csg" style="color:var(--success);">0</div>
-    </div>
-  </div>
+<main class="main-wrap">
 
-  <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
-    <input type="text" id="armoury-search" placeholder="Filter view by serial, make, model..." style="padding:10px 14px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:6px; width:360px;" oninput="onLedgerSearchInput()">
-    <button class="btn" onclick="switchTab('tab-intake')">+ Intake Firearm</button>
-  </div>
-
-  <div class="table-card">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:36px;"><input type="checkbox" id="chk-all-guns" onchange="toggleSelectAllGuns(this)"></th>
-          <th>Serial</th>
-          <th>Safe Location</th>
-          <th>Make &amp; Model</th>
-          <th>Calibre</th>
-          <th>Category</th>
-          <th>Storage Type</th>
-          <th>Owner / Consignor</th>
-          <th>Price</th>
-        </tr>
-      </thead>
-      <tbody id="armoury-table-body"></tbody>
-    </table>
-  </div>
-</main>
-
-<!-- FLOATING BULK TOOLBAR -->
-<div id="bulk-action-bar" class="bulk-floating-bar">
-  <span style="font-weight:900; font-size:0.85rem;" id="bulk-selected-count">0 Firearms Selected</span>
-  <select id="bulk-safe-select" style="padding:7px 12px; background:var(--bg-page); color:var(--text); border:1px solid var(--border); border-radius:6px; font-size:0.85rem; font-weight:700;"></select>
-  <button class="btn btn-sm" onclick="executeBulkMoveWithSafeguard()">⚡ Move to Safe</button>
-  <button class="btn btn-outline btn-sm" onclick="clearBulkSelection()">Cancel</button>
-</div>
-
-<!-- 2. TWO-SCAN STATION -->
-<main id="tab-two-scan">
-  <div class="two-scan-grid">
-    <div class="scan-card active-step" id="card-step-1">
-      <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">STEP 1 • SCAN ITEM TAG OR SERIAL</div>
-      <input type="text" id="scan-in-1" class="scan-input-lg" placeholder="Awaiting barcode wedge..." autofocus autocomplete="off">
-      <div id="step-1-locked" style="display:none; margin-top:14px; background:var(--success-bg); border:1px solid var(--success); padding:14px; border-radius:6px;">
-        <div style="font-size:0.75rem; font-weight:800; color:var(--success);">[✓] LOCKED ON FIREARM:</div>
-        <div id="locked-gun-name" style="font-weight:900; font-size:1.15rem; margin-top:4px;">-</div>
-        <div id="locked-gun-meta" style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">-</div>
-      </div>
-    </div>
-    <div class="scan-card" id="card-step-2">
-      <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">STEP 2 • SCAN DESTINATION SAFE PLACARD</div>
-      <input type="text" id="scan-in-2" class="scan-input-lg" placeholder="Scan Safe (LOC:SAFE-01)..." disabled autocomplete="off">
-      <div id="quick-safe-btns" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr)); gap:8px; margin-top:14px;"></div>
-    </div>
-  </div>
-
-  <div class="table-card">
-    <div style="padding:14px 18px; border-bottom:1px solid var(--border); font-weight:800;">Recent Safe Moves</div>
-    <table>
-      <thead><tr><th>Serial</th><th>Safe</th><th>Make &amp; Model</th><th>Calibre</th><th>Storage Type</th></tr></thead>
-      <tbody id="two-scan-recent-table"></tbody>
-    </table>
-  </div>
-</main>
-
-<!-- 3. SAFES & CAPACITIES -->
-<main id="tab-safes">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-    <h3>Store Safes &amp; Capacities</h3>
-    <button class="btn" onclick="openAddSafeModal()">+ Add New Safe</button>
-  </div>
-  <div class="safes-grid" id="safes-container"></div>
-</main>
-
-<!-- 4. CUSTOMERS TAB -->
-<main id="tab-customers">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-    <h3>Customer Directory</h3>
-    <button class="btn" onclick="openAddCustomerModal()">+ Add Customer</button>
-  </div>
-  <div class="table-card">
-    <table>
-      <thead><tr><th>Customer Name</th><th>Business</th><th>Phone</th><th>Licence No</th><th>Active Guns</th><th>Storage Allotments</th><th>Consignments</th><th>Action</th></tr></thead>
-      <tbody id="customers-table-body"></tbody>
-    </table>
-  </div>
-</main>
-
-<!-- 5. INTAKE STUDIO -->
-<main id="tab-intake">
-  <div class="intake-studio-grid">
-    <div class="table-card" style="padding:24px;">
-      <h3 style="margin-bottom:16px;">Armoury Intake &amp; Physical Tag Form</h3>
-      <form id="intake-form" onsubmit="saveIntakeRecord(event)">
-        <div class="form-grid-2col">
-          <div class="form-field">
-            <label>Storage Classification</label>
-            <select id="in-storage-type" onchange="handleStorageTypeChange(); renderPreview(); persistIntakeDefaults();">
-              <option value="Sale">Sale (Floor Stock)</option>
-              <option value="Customer Storage">Customer Storage</option>
-              <option value="Layby">Layby</option>
-              <option value="Consignment Sale">Consignment Sale</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label>Destination Safe</label>
-            <select id="in-safe" onchange="persistIntakeDefaults();"></select>
-          </div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>Serial Number *</label><input type="text" id="in-serial" required oninput="renderPreview()"></div>
-          <div class="form-field"><label>Hike POS SKU</label><input type="text" id="in-sku" oninput="renderPreview()"></div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>NSW Rego No</label><input type="text" id="in-rego"></div>
-          <div class="form-field"><label>Dealer Book No</label><input type="text" id="in-book"></div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>Make / Brand *</label><input type="text" id="in-make" list="brand-suggestions" required oninput="renderPreview()"></div>
-          <div class="form-field"><label>Model *</label><input type="text" id="in-model" required oninput="renderPreview()"></div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>Calibre / Gauge *</label><input type="text" id="in-calibre" required oninput="renderPreview()"></div>
-          <div class="form-field"><label>Category *</label>
-            <select id="in-cat" onchange="renderPreview(); persistIntakeDefaults();">
-              <option value="Cat A">Cat A</option>
-              <option value="Cat B" selected>Cat B</option>
-              <option value="Cat C">Cat C</option>
-              <option value="Cat D">Cat D</option>
-              <option value="Cat H">Cat H</option>
-              <option value="Non-Regulated">Non-Regulated / Optics</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field">
-            <label>Condition Tag *</label>
-            <select id="in-cond" onchange="renderPreview(); persistIntakeDefaults();">
-              <option value="New">New</option>
-              <option value="Used" selected>Used</option>
-              <option value="Custom">Custom</option>
-              <option value="For Parts">For Parts</option>
-              <option value="Ex-Demo">Ex-Demo</option>
-              <option value="Gun Storage">Gun Storage</option>
-            </select>
-          </div>
-          <div class="form-field"><label>Condition Report / Grade</label>
-            <input type="text" id="in-cond-report" placeholder="e.g. Excellent 95% • Bore crisp" oninput="renderPreview()">
-          </div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>Action</label><input type="text" id="in-action" placeholder="Bolt Action, Lever" oninput="renderPreview()"></div>
-          <div class="form-field"><label>Barrel &amp; Capacity</label><input type="text" id="in-specs" placeholder='22" Barrel • 5-Shot' oninput="renderPreview()"></div>
-        </div>
-
-        <div id="owner-fields-box" style="display:none;" class="form-grid-2col">
-          <div class="form-field"><label id="in-owner-lbl">Owner / Consignor Name *</label><input type="text" id="in-owner" oninput="renderPreview()"></div>
-          <div class="form-field"><label>Owner / Consignor Phone</label><input type="text" id="in-phone" oninput="renderPreview()"></div>
-        </div>
-
-        <div class="form-grid-2col">
-          <div class="form-field"><label>Retail Price ($ AUD)</label><input type="number" step="0.01" id="in-price" value="0.00" oninput="renderPreview()"></div>
-          <div class="form-field"><label>Was Price ($ Strikethrough)</label><input type="number" step="0.01" id="in-was" value="0.00" oninput="renderPreview()"></div>
-        </div>
-
-        <div class="form-field"><label>Printed Notes (on tag)</label><input type="text" id="in-printnotes" placeholder="Includes rings &amp; scope" oninput="renderPreview()"></div>
-
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
-          <button type="submit" class="btn">💾 Save Record into Vault</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Live Thermal Tag Preview -->
-    <div>
-      <div style="font-size:0.75rem; font-weight:800; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Live 62mm Continuous Thermal Tag</div>
-      <div id="thermal-tag-preview" class="tag-preview-canvas">
-        <div class="tag-store-hdr" id="tag-hdr-txt">TENTERFIELD FIREARMS</div>
-        <div class="tag-badges-strip">
-          <span class="tag-badge" id="tag-cat-badge">CAT B</span>
-          <span class="tag-badge" id="tag-cond-badge">USED</span>
-        </div>
-        <div class="tag-prod-title" id="tag-title-txt">Lithgow LA102</div>
-        <div class="tag-specs" id="tag-spec-txt">.308 Win • Bolt Action</div>
-        <div id="tag-cond-report-row" style="font-size:10px; font-weight:700; color:#333; margin-top:2px;"></div>
-        <div id="tag-owner-row" style="font-size:11px; font-weight:800; border-top:1px dashed #000; padding-top:2px; margin-top:4px; display:none;"></div>
-        <div id="tag-notes-row" style="font-size:10px; font-weight:700; margin-top:2px;"></div>
-        <div class="tag-price-row">
-          <div>
-            <span class="tag-price" id="tag-price-txt">$0.00</span>
-            <span id="tag-was-txt" style="font-size:12px; text-decoration:line-through; color:#666; margin-left:6px; display:none;"></span>
-          </div>
-          <span style="font-size:10px; font-weight:800;">INC GST</span>
-        </div>
-        <div class="tag-barcode-container">
-          <svg id="tag-barcode-svg"></svg>
-        </div>
-      </div>
-      <div style="text-align:center; margin-top:16px;">
-        <button class="btn" onclick="triggerPrintGunLabel()">🖨️ Print Gun Tag</button>
-      </div>
-    </div>
-  </div>
-</main>
-
-<!-- 62mm x 80mm SAFE PLACARD PRINT TARGET -->
-<div id="safe-placard-render-62x80" class="placard-canvas-62x80">
-  <div class="plc-banner-black" id="plc-title">SAFE 01 — SPIKA</div>
-  <div class="plc-barcode-wrap">
-    <svg id="plc-barcode"></svg>
-  </div>
-  <div class="plc-spec-strip">
-    <span id="plc-cat">CAT B LONGARMS</span>
-    <span id="plc-cap">CAPACITY: 30</span>
-  </div>
-</div>
-
-<!-- SAFE CONTENTS DRAWER -->
-<div id="safe-drawer-modal" class="modal-overlay">
-  <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <div>
-        <h3 id="safe-drawer-name" style="font-size:1.3rem;">Safe Contents</h3>
-        <div id="safe-drawer-meta" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;"></div>
-      </div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline btn-sm" onclick="openEditSafeModal(activeSafeForPlacard.id)">✏️ Edit Safe</button>
-        <button class="btn btn-sm" onclick="triggerPrintSafePlacard()">🖨️ 62×80mm Placard</button>
-        <button class="btn btn-outline btn-sm" onclick="closeModals()">✕ Close</button>
-      </div>
-    </div>
-
-    <table>
-      <thead><tr><th>Serial</th><th>Make &amp; Model</th><th>Calibre</th><th>Storage Type</th><th>Owner / Consignor</th><th>Action</th></tr></thead>
-      <tbody id="safe-drawer-table"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- EDIT SAFE MODAL -->
-<div id="safe-edit-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:480px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 id="safe-edit-modal-title">Configure Safe Location</h3>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕</button>
-    </div>
-    <form onsubmit="saveSafeConfig(event)">
-      <div class="form-field"><label>Safe Identifier ID *</label><input type="text" id="sf-id" required></div>
-      <div class="form-field"><label>Display Name *</label><input type="text" id="sf-name" required></div>
-      <div class="form-field">
-        <label>Storage Category</label>
-        <select id="sf-cat">
-          <option value="Safe">Safe</option>
-          <option value="Display">Display Wall / Floor</option>
-          <option value="Workshop">Workshop Bench</option>
-          <option value="Intake">Intake Bay</option>
-        </select>
-      </div>
-      <div class="form-field"><label>Max Gun Capacity (0 for Unlimited)</label><input type="number" id="sf-cap" required></div>
-      <div class="form-field"><label>Color Accent Code</label><input type="color" id="sf-color" value="#0284c7" style="height:42px; cursor:pointer;"></div>
-      <div class="form-field"><label>Internal Notes</label><input type="text" id="sf-notes"></div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
-        <button type="button" class="btn btn-outline" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn">Save Safe Settings</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- FIREARM DOSSIER -->
-<div id="dossier-modal" class="modal-overlay">
-  <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
-      <div>
-        <h2 id="dos-title" style="font-size:1.5rem; font-weight:900;">Firearm Dossier</h2>
-        <div id="dos-specs" style="color:var(--text-muted); font-size:0.85rem; margin-top:2px;"></div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <span id="dos-safe-badge" style="background:var(--accent); color:#fff; padding:6px 12px; border-radius:6px; font-weight:800;"></span>
-        <button class="btn btn-outline btn-sm" onclick="closeModals()" style="font-size:1rem; padding:4px 10px;">✕ Close</button>
-      </div>
-    </div>
-
-    <!-- Linked Customer Dossier Card -->
-    <div id="dos-consignor-card" style="display:none; background:rgba(34,197,94,0.1); border:1px solid #22c55e; border-radius:6px; padding:14px; margin-bottom:18px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:0.75rem; font-weight:800; color:#22c55e; text-transform:uppercase;">Owner / Customer File</span>
-        <button class="btn btn-outline btn-sm" id="btn-view-cust-profile" onclick="viewCustomerFromDossier()">👤 View Customer Dossier</button>
-      </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-        <div>
-          <div id="dos-consignor-name" style="font-size:1.15rem; font-weight:900; color:var(--text);">-</div>
-          <div id="dos-consignor-phone" style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">-</div>
-        </div>
-        <div id="dos-storage-chip" style="background:var(--bg-card); padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:800; border:1px solid var(--border);"></div>
-      </div>
-    </div>
-
-    <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px; margin-bottom:16px;">
-      <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px;">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">SERIAL NUMBER</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-          <span id="dos-serial" style="font-weight:900; font-family:monospace; font-size:1.1rem;">-</span>
-          <button class="btn-copy" onclick="copyVal('dos-serial')">Copy</button>
-        </div>
-      </div>
-      <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px;">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">HIKE POS SKU</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-          <span id="dos-sku" style="font-weight:900; font-family:monospace; font-size:1.1rem;">-</span>
-          <button class="btn-copy" onclick="copyVal('dos-sku')">Copy</button>
-        </div>
-      </div>
-      <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px;">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">NSW REGISTRATION NO</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-          <span id="dos-rego" style="font-weight:900; font-family:monospace; font-size:1.1rem;">-</span>
-          <button class="btn-copy" onclick="copyVal('dos-rego')">Copy</button>
-        </div>
-      </div>
-      <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px;">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">DEALER BOOK NO</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-          <span id="dos-book" style="font-weight:900; font-family:monospace; font-size:1.1rem;">-</span>
-          <button class="btn-copy" onclick="copyVal('dos-book')">Copy</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Condition Report Readout -->
-    <div style="background:var(--bg-page); padding:12px; border:1px solid var(--border); border-radius:6px; margin-bottom:20px;">
-      <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">CONDITION RATING &amp; REPORT</div>
-      <div id="dos-condition-report" style="font-size:0.9rem; font-weight:700; margin-top:4px;">No condition report recorded.</div>
-    </div>
-
-    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:16px;">
-      <button class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="promptDeleteGun()">🗑️ Delete Gun</button>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-outline" onclick="openQldTransferModal()">📦 QLD Transfer Tag</button>
-        <button class="btn btn-outline" onclick="openMoveSafeModal()">⚡ Move Safe</button>
-        <button class="btn btn-outline" onclick="openEditFirearmModal()">✏️ Edit Gun</button>
-        <button class="btn" onclick="printFromDossier()">🏷️ Print Tag</button>
-        <button class="btn btn-outline" onclick="closeModals()">✕ Close</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- INTERACTIVE MOVE SAFE MODAL -->
-<div id="reassign-safe-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:440px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3>⚡ Move Firearm to Safe</h3>
-      <button class="btn btn-outline btn-sm" onclick="closeReassignModal()">✕</button>
-    </div>
-    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">Select destination safe for <strong id="reassign-gun-title"></strong>:</p>
-    <div id="reassign-safes-list" style="display:grid; grid-template-columns:1fr; gap:8px;"></div>
-  </div>
-</div>
-
-<!-- INLINE DELETE CONFIRMATION MODAL -->
-<div id="delete-confirm-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:440px; text-align:center;">
-    <h3 style="color:var(--danger); margin-bottom:10px;">⚠️ Confirm Permanent Deletion</h3>
-    <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:16px;">
-      Are you sure you want to delete <strong id="del-gun-label" style="color:var(--text);"></strong> from the vault ledger?<br>
-      This action cannot be undone.
-    </p>
-    <div style="display:flex; justify-content:center; gap:12px;">
-      <button class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
-      <button class="btn" style="background:var(--danger); border-color:var(--danger);" onclick="confirmDeleteFirearm()">Yes, Permanently Delete</button>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT FIREARM MODAL -->
-<div id="gun-edit-modal" class="modal-overlay">
-  <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3>Edit Firearm Record</h3>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕</button>
-    </div>
-    <form onsubmit="saveEditedGun(event)">
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Serial Number (Locked)</label><input type="text" id="egun-serial" readonly style="opacity:0.7;"></div>
-        <div class="form-field"><label>Hike POS SKU</label><input type="text" id="egun-sku"></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Make *</label><input type="text" id="egun-make" list="brand-suggestions" required></div>
-        <div class="form-field"><label>Model *</label><input type="text" id="egun-model" required></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Calibre *</label><input type="text" id="egun-calibre" required></div>
-        <div class="form-field"><label>Category</label>
-          <select id="egun-cat">
-            <option value="Cat A">Cat A</option>
-            <option value="Cat B">Cat B</option>
-            <option value="Cat C">Cat C</option>
-            <option value="Cat D">Cat D</option>
-            <option value="Cat H">Cat H</option>
-            <option value="Non-Regulated">Non-Regulated / Optics</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field">
-          <label>Storage Classification</label>
-          <select id="egun-storage-type">
-            <option value="Sale">Sale (Floor Stock)</option>
-            <option value="Customer Storage">Customer Storage</option>
-            <option value="Layby">Layby</option>
-            <option value="Consignment Sale">Consignment Sale</option>
-          </select>
-        </div>
-        <div class="form-field"><label>Current Safe</label><select id="egun-safe"></select></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field">
-          <label>Condition Tag</label>
-          <select id="egun-cond">
-            <option value="New">New</option>
-            <option value="Used">Used</option>
-            <option value="Custom">Custom</option>
-            <option value="For Parts">For Parts</option>
-            <option value="Ex-Demo">Ex-Demo</option>
-            <option value="Gun Storage">Gun Storage</option>
-          </select>
-        </div>
-        <div class="form-field"><label>Condition Report</label><input type="text" id="egun-cond-report"></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Owner / Consignor Name</label><input type="text" id="egun-owner"></div>
-        <div class="form-field"><label>Owner / Consignor Phone</label><input type="text" id="egun-phone"></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>NSW Rego No</label><input type="text" id="egun-rego"></div>
-        <div class="form-field"><label>Dealer Book No</label><input type="text" id="egun-book"></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Retail Price ($ AUD)</label><input type="number" step="0.01" id="egun-price"></div>
-        <div class="form-field"><label>Was Price ($ AUD)</label><input type="number" step="0.01" id="egun-was"></div>
-      </div>
-      <div class="form-field"><label>Internal Notes</label><input type="text" id="egun-notes"></div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
-        <button type="button" class="btn btn-outline" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn">Update Firearm</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- QLD INTERSTATE TRANSFER MODAL -->
-<div id="qld-transfer-modal" class="modal-overlay">
-  <div class="modal-box" style="width: 820px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <div>
-        <h3 style="font-size:1.3rem;">📦 Interstate Transfer Tag (NSW ➔ QLD)</h3>
-        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
-          Generate regulatory parcel dockets for Queensland dealer transfers.
-        </div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕ Close</button>
-    </div>
-
-    <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
-      <div>
-        <div class="form-field">
-          <label>Receiving QLD Dealer Name *</label>
-          <input type="text" id="qld-to-dealer" placeholder="e.g. Warwick Outdoors & Sports" oninput="renderQldTransferTag()" required>
-        </div>
-        <div class="form-grid-2col">
-          <div class="form-field">
-            <label>QLD Dealer Licence # *</label>
-            <input type="text" id="qld-to-licence" placeholder="e.g. 50001234" oninput="renderQldTransferTag()" required>
-          </div>
-          <div class="form-field">
-            <label>Dealer Phone</label>
-            <input type="text" id="qld-to-phone" placeholder="e.g. (07) 4661 1234" oninput="renderQldTransferTag()">
-          </div>
-        </div>
-        <div class="form-field">
-          <label>Receiving Dealer Address *</label>
-          <input type="text" id="qld-to-address" placeholder="Street, Suburb, QLD Postcode" oninput="renderQldTransferTag()" required>
-        </div>
-
-        <div style="border-top: 1px solid var(--border); margin: 12px 0; padding-top: 12px;">
-          <div class="form-field">
-            <label>Acquiring Customer Full Name *</label>
-            <input type="text" id="qld-cust-name" placeholder="Customer Name" oninput="renderQldTransferTag()" required>
-          </div>
-          <div class="form-grid-2col">
-            <div class="form-field">
-              <label>Customer QLD Licence / PTA # *</label>
-              <input type="text" id="qld-cust-licence" placeholder="Licence # or PTA #" oninput="renderQldTransferTag()" required>
+    <!-- 1. ARMOURY LEDGER TAB -->
+    <section id="tab-armoury" class="tab-pane active">
+        <div class="kpi-strip">
+            <div class="kpi-card active" onclick="setStorageFilter('ALL', this)">
+                <div class="kpi-label">Total Active In-Store</div>
+                <div class="kpi-val" id="kpi-total">0</div>
             </div>
-            <div class="form-field">
-              <label>Customer Phone</label>
-              <input type="text" id="qld-cust-phone" placeholder="Mobile Number" oninput="renderQldTransferTag()">
+            <div class="kpi-card" onclick="setStorageFilter('Sale (Floor Stock)', this)">
+                <div class="kpi-label">Floor Stock (Sale)</div>
+                <div class="kpi-val" id="kpi-sale">0</div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size:0.72rem; font-weight:800; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase;">
-          Live 62mm Tag Preview
-        </div>
-        <div id="qld-transfer-preview" class="qld-transfer-canvas" style="display:flex;">
-          <div class="qld-hdr-banner">REGULATED WEAPONS TRANSIT</div>
-          
-          <div class="qld-section">
-            <div class="qld-lbl">SENDER (CONSIGNOR DEALER):</div>
-            <div class="qld-val" id="prev-sender-name">TENTERFIELD FIREARMS</div>
-            <div id="prev-sender-lic" style="font-weight:700;">NSW-DEALER-40911082</div>
-            <div id="prev-sender-addr" style="color:#333;">126 Rouse St, Tenterfield NSW</div>
-            <div id="prev-sender-phone" style="color:#333;">(02) 6736 1234</div>
-          </div>
-
-          <div class="qld-section">
-            <div class="qld-lbl">DESTINATION DEALER (CONSIGNEE):</div>
-            <div class="qld-val" id="prev-to-dealer">AWAITING DEALER...</div>
-            <div id="prev-to-lic" style="font-weight:700;">QLD LIC: -</div>
-            <div id="prev-to-addr" style="color:#333;">-</div>
-            <div id="prev-to-phone" style="color:#333;">-</div>
-          </div>
-
-          <div class="qld-section">
-            <div class="qld-lbl">ACQUIRING CUSTOMER / END USER:</div>
-            <div class="qld-val" id="prev-cust-name">-</div>
-            <div id="prev-cust-lic" style="font-weight:700;">LIC/PTA: -</div>
-            <div id="prev-cust-phone" style="color:#333;">-</div>
-          </div>
-
-          <div class="qld-section">
-            <div class="qld-lbl">FIREARM PARTICULARS:</div>
-            <div class="qld-val" id="prev-gun-title">-</div>
-            <div id="prev-gun-specs" style="font-weight:700;">-</div>
-            <div id="prev-gun-serial" style="font-family:monospace; font-weight:900;">SN: -</div>
-            <div id="prev-gun-book" style="color:#333;">-</div>
-          </div>
-
-          <div style="text-align:center; padding: 2mm 0;">
-            <svg id="prev-qld-barcode"></svg>
-          </div>
-
-          <div style="font-size:7px; font-weight:800; text-align:center; text-transform:uppercase; border-top:1px dashed #000; padding-top:2px;">
-            Authorised Licensed Recipient Only • Inspect ID Upon Delivery
-          </div>
+            <div class="kpi-card" onclick="setStorageFilter('Customer Storage', this)">
+                <div class="kpi-label">Customer Storage</div>
+                <div class="kpi-val" id="kpi-storage">0</div>
+            </div>
+            <div class="kpi-card" onclick="setStorageFilter('Layby', this)">
+                <div class="kpi-label">Active Laybys</div>
+                <div class="kpi-val" id="kpi-layby">0</div>
+            </div>
+            <div class="kpi-card" onclick="setStorageFilter('Consignment Sale', this)">
+                <div class="kpi-label">Consignments</div>
+                <div class="kpi-val" id="kpi-consign">0</div>
+            </div>
+            <div class="kpi-card" onclick="setStorageFilter('DISPOSED', this)">
+                <div class="kpi-label">Disposed / Sold</div>
+                <div class="kpi-val" id="kpi-disposed">0</div>
+            </div>
         </div>
 
-        <div style="text-align:center; margin-top:14px;">
-          <button class="btn" style="width:100%;" onclick="triggerPrintQldTransferTag()">🖨️ Print 62mm Parcel Tag</button>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="filter-safe" onchange="renderArmouryTable()" style="width:210px;">
+                        <option value="ALL">All Safes & Locations</option>
+                    </select>
+                    <select id="filter-cat" onchange="renderArmouryTable()" style="width:150px;">
+                        <option value="ALL">All Categories</option>
+                        <option value="Cat A">Cat A</option>
+                        <option value="Cat B">Cat B</option>
+                        <option value="Cat C">Cat C</option>
+                        <option value="Cat D">Cat D</option>
+                        <option value="Cat H">Cat H</option>
+                    </select>
+                </div>
+                <div style="font-size:12px;color:var(--text-muted);font-weight:600;">
+                    💡 Click any row for Quick-Inspect Dossier, 1-click Copy, Thermal Label Printing, or PTA Release Guard.
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:32px;"><input type="checkbox" id="chk-select-all" onchange="toggleSelectAllGuns(this.checked)"></th>
+                            <th>Serial / SKU</th>
+                            <th>NSW Rego / Book</th>
+                            <th>Firearm / Item Particulars</th>
+                            <th>Cat</th>
+                            <th>Storage Classification</th>
+                            <th>Owner / Client (If Applicable)</th>
+                            <th>Physical Safe</th>
+                            <th class="audit-hide">Price</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="armoury-tbody"></tbody>
+                </table>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
+    </section>
 
-<div id="qld-transfer-render" class="qld-transfer-canvas"></div>
+    <!-- 2. TWO-SCAN & SAFE STOCKTAKE AUDIT TAB -->
+    <section id="tab-twoscan" class="tab-pane">
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));">
+            <div class="card">
+                <h3 style="margin-top:0;">⚡ Two-Scan & Rapid Multi-Gun Safe Sweep</h3>
+                <p style="color:var(--text-muted);font-size:12px;">
+                    Wireless/USB barcode scanner ready. Scan a firearm barcode on Step 1, then scan a Safe Door Placard (`LOC:SAFE-01`) or click a safe button below. Enable <strong>Rapid Sweep Mode</strong> to lock a destination safe and scan 10–30 guns continuously.
+                </p>
+                <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="chk-rapid-sweep" style="width:18px;height:18px;">
+                    <label for="chk-rapid-sweep" style="margin:0;font-size:13px;color:var(--primary);">🔒 Rapid Multi-Gun Sweep Mode (Lock Destination Safe)</label>
+                </div>
+                <div class="form-grid">
+                    <div>
+                        <label>Step 1: Firearm Serial / SKU / Rego</label>
+                        <input type="text" id="scan-step1" placeholder="Scan or type firearm barcode..." onkeydown="if(event.key==='Enter') handleTwoScanInput()">
+                    </div>
+                    <div>
+                        <label>Step 2: Destination Safe (`LOC:SAFE-01`)</label>
+                        <select id="scan-step2"></select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;" onclick="handleTwoScanInput()">Execute Safe Transfer</button>
+                <div id="twoscan-feedback" style="margin-top:10px;font-weight:800;"></div>
+                <div id="twoscan-quick-btns" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;"></div>
+            </div>
 
-<!-- CUSTOMER DOSSIER MODAL -->
-<div id="customer-dossier-modal" class="modal-overlay">
-  <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <div>
-        <h3 id="cdos-name" style="font-size:1.4rem;">Customer Dossier</h3>
-        <div id="cdos-sub" style="color:var(--text-muted); font-size:0.85rem;"></div>
-      </div>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕ Close</button>
-    </div>
-    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-bottom:16px;">
-      <div style="background:var(--bg-page); padding:10px; border-radius:6px; border:1px solid var(--border);">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">PHONE</div>
-        <div id="cdos-phone" style="font-weight:900; margin-top:2px;">-</div>
-      </div>
-      <div style="background:var(--bg-page); padding:10px; border-radius:6px; border:1px solid var(--border);">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">LICENCE NO</div>
-        <div id="cdos-lic" style="font-weight:900; margin-top:2px;">-</div>
-      </div>
-      <div style="background:var(--bg-page); padding:10px; border-radius:6px; border:1px solid var(--border);">
-        <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">EMAIL</div>
-        <div id="cdos-email" style="font-weight:900; margin-top:2px;">-</div>
-      </div>
-    </div>
-    <div style="font-size:0.85rem; font-weight:800; margin-bottom:8px;">Linked Firearms &amp; Storage Allotments</div>
-    <table>
-      <thead><tr><th>Serial</th><th>Item</th><th>Calibre</th><th>Storage Type</th><th>Safe</th><th>Action</th></tr></thead>
-      <tbody id="cdos-guns-table"></tbody>
-    </table>
-    <div style="display:flex; justify-content:flex-end; margin-top:18px;">
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕ Close Profile</button>
-    </div>
-  </div>
-</div>
-
-<!-- ADD CUSTOMER MODAL -->
-<div id="customer-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:480px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3>Add New Customer</h3>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕</button>
-    </div>
-    <form onsubmit="saveCustomer(event)">
-      <div class="form-field"><label>Full Name *</label><input type="text" id="cust-name" required></div>
-      <div class="form-field"><label>Business / Farm Name</label><input type="text" id="cust-biz"></div>
-      <div class="form-field"><label>Phone Number</label><input type="text" id="cust-phone"></div>
-      <div class="form-field"><label>Email Address</label><input type="email" id="cust-email"></div>
-      <div class="form-field"><label>Firearms Licence Number</label><input type="text" id="cust-lic"></div>
-      <div class="form-field"><label>Residential / Property Address</label><input type="text" id="cust-addr"></div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:18px;">
-        <button type="button" class="btn btn-outline" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn">Save Customer</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- PIN MODAL -->
-<div id="pin-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width:320px; text-align:center;">
-    <h3 style="margin-bottom:4px;">Operator Fast-Switch</h3>
-    <input type="password" id="pin-display" readonly style="width:100%; text-align:center; font-size:1.8rem; letter-spacing:8px; padding:10px; background:var(--bg-page); color:var(--text); border:2px solid var(--border); border-radius:6px; margin:12px 0;">
-    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; width:200px; margin:0 auto 12px auto;">
-      <button class="btn btn-outline" onclick="pressPin('1')">1</button>
-      <button class="btn btn-outline" onclick="pressPin('2')">2</button>
-      <button class="btn btn-outline" onclick="pressPin('3')">3</button>
-      <button class="btn btn-outline" onclick="pressPin('4')">4</button>
-      <button class="btn btn-outline" onclick="pressPin('5')">5</button>
-      <button class="btn btn-outline" onclick="pressPin('6')">6</button>
-      <button class="btn btn-outline" onclick="pressPin('7')">7</button>
-      <button class="btn btn-outline" onclick="pressPin('8')">8</button>
-      <button class="btn btn-outline" onclick="pressPin('9')">9</button>
-      <button class="btn btn-outline" style="color:var(--danger);" onclick="clearPin()">C</button>
-      <button class="btn btn-outline" onclick="pressPin('0')">0</button>
-      <button class="btn" onclick="submitPin()">↵</button>
-    </div>
-    <button class="btn btn-outline btn-sm" style="width:100%;" onclick="closeModals()">✕ Close</button>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div id="settings-modal" class="modal-overlay">
-  <div class="modal-box">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3>Store Settings</h3>
-      <button class="btn btn-outline btn-sm" onclick="closeModals()">✕</button>
-    </div>
-    <form onsubmit="saveSettings(event)">
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Store Name</label><input type="text" id="set-name" required></div>
-        <div class="form-field"><label>NSW Dealer Licence</label><input type="text" id="set-licence" required></div>
-      </div>
-      <div class="form-grid-2col">
-        <div class="form-field"><label>Store Phone</label><input type="text" id="set-phone"></div>
-        <div class="form-field"><label>Store Email</label><input type="email" id="set-email"></div>
-      </div>
-      <div class="form-field"><label>Store Address</label><input type="text" id="set-address"></div>
-      <div class="form-grid-2col">
-        <div class="form-field">
-          <label>Barcode Preference</label>
-          <select id="set-barcode-pref">
-            <option value="serial">Generate from Serial Number</option>
-            <option value="sku">Generate from Hike POS SKU</option>
-          </select>
+            <div class="card">
+                <h3 style="margin-top:0;">📋 Physical Safe Stocktake & Reconciliation Audit</h3>
+                <p style="color:var(--text-muted);font-size:12px;">
+                    Select a safe and scan every physical firearm inside (one per line). CyanStock reconciles Verified, Missing, and Misplaced guns immediately.
+                </p>
+                <div style="margin-bottom:10px;">
+                    <label>Target Safe to Audit</label>
+                    <select id="audit-safe-select"></select>
+                </div>
+                <div style="margin-bottom:10px;">
+                    <label>Scanned Serials / Barcodes (One per line — Barcode gun auto-enters)</label>
+                    <textarea id="audit-scanned-input" rows="5" placeholder="Scan every gun physically inside the safe..."></textarea>
+                </div>
+                <button class="btn btn-success" style="width:100%;justify-content:center;padding:10px;" onclick="runSafeStocktakeAudit()">Run Safe Stocktake Reconciliation</button>
+                <div id="audit-results-box" style="margin-top:12px;"></div>
+            </div>
         </div>
-        <div class="form-field">
-          <label>Thermal Label Default Profile</label>
-          <select id="set-label-prof">
-            <option value="62mm">Brother 62mm Continuous Roll</option>
-            <option value="72mm">POS 72mm Receipt Roll</option>
-          </select>
+    </section>
+
+    <!-- 3. SAFES & PLACARDS TAB -->
+    <section id="tab-safes" class="tab-pane">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;">Physical Safes, Capacities & 62mm × 80mm Door Placards</h3>
+            <button class="btn btn-primary audit-hide" onclick="openAddSafeModal()">+ Add / Configure Safe</button>
         </div>
-      </div>
-      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
-        <button type="button" class="btn btn-outline" onclick="closeModals()">Cancel</button>
-        <button type="submit" class="btn">Save Settings</button>
-      </div>
-    </form>
-  </div>
-</div>
+        <div class="safe-grid" id="safe-cards-grid"></div>
 
-<script>
-let currentUser = { id: 1, full_name: "Master Admin", role: "Admin" };
-let currentPinBuffer = "";
-let activeSettings = {};
-let cachedLocations = [];
-let cachedFirearms = [];
-let cachedCustomers = [];
-let lockedGun = null;
-let currentDossierGun = null;
-let activeSafeForPlacard = null;
-let activeQldTransferGun = null;
-let selectedGunSerials = new Set();
-let currentStorageFilter = '';
-let currentSearchQuery = '';
-
-// Offline Barcode Generator Fallback (Pure JS SVG Code 128)
-function renderBarcodeSafely(selector, value, options) {
-  try {
-    if (typeof JsBarcode === "function") {
-      JsBarcode(selector, value, options);
-      return;
-    }
-  } catch (e) {
-    console.warn("JsBarcode failed, falling back to pure SVG generator:", e);
-  }
-  // Fallback simple SVG generator
-  const el = document.querySelector(selector);
-  if (!el) return;
-  const h = options.height || 50;
-  const w = (options.width || 2) * 20;
-  el.innerHTML = `
-    <rect width="100%" height="${h}" fill="#fff"/>
-    <text x="50%" y="${h/2 + 5}" font-family="monospace" font-size="14" font-weight="900" fill="#000" text-anchor="middle">${value}</text>
-  `;
-}
-
-function switchTab(tabId) {
-  document.querySelectorAll('main').forEach(m => m.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  const target = document.getElementById(tabId);
-  if (target) target.classList.add('active');
-  const btn = document.querySelector(`[data-tab="${tabId}"]`);
-  if (btn) btn.classList.add('active');
-
-  if (tabId === 'tab-armoury') loadArmoury(currentStorageFilter);
-  if (tabId === 'tab-two-scan') resetTwoScan();
-  if (tabId === 'tab-safes') loadSafes();
-  if (tabId === 'tab-customers') loadCustomers();
-  if (tabId === 'tab-intake') restoreIntakeDefaults();
-}
-
-function toggleTheme() {
-  const isLight = document.body.classList.toggle('light-theme');
-  localStorage.setItem('cyanstock_theme', isLight ? 'light' : 'dark');
-}
-
-// Global Hardware Barcode Wedge Trap
-let wedgeBuffer = "";
-let lastKeyTime = Date.now();
-window.addEventListener('keydown', (e) => {
-  const activeTag = document.activeElement ? document.activeElement.tagName : '';
-  const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag);
-  const now = Date.now();
-
-  if (now - lastKeyTime > 120) wedgeBuffer = "";
-  lastKeyTime = now;
-
-  if (e.key === 'Enter') {
-    if (wedgeBuffer.length >= 3 && !isInputFocused) {
-      e.preventDefault();
-      handleGlobalWedgeScan(wedgeBuffer.trim());
-      wedgeBuffer = "";
-    }
-  } else if (e.key.length === 1) {
-    wedgeBuffer += e.key;
-  }
-});
-
-async function handleGlobalWedgeScan(scannedVal) {
-  const f = new FormData();
-  f.append('barcode', scannedVal);
-  const res = await fetch('/api/scan', { method: 'POST', body: f });
-  const data = await res.json();
-  if (data.scan_type === 'firearm_query') {
-    openDossier(data.firearm.serial);
-  } else if (data.scan_type === 'location_locked') {
-    openSafeDrawer(data.location_id);
-  } else {
-    document.getElementById('top-search').value = scannedVal;
-    handleTopSearch();
-  }
-}
-
-// Universal Search
-let searchTimer = null;
-async function handleTopSearch() {
-  clearTimeout(searchTimer);
-  const q = document.getElementById('top-search').value.trim();
-  const menu = document.getElementById('search-dropdown-menu');
-  if (q.length < 2) { menu.style.display = 'none'; return; }
-
-  searchTimer = setTimeout(async () => {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    const data = await res.json();
-    menu.innerHTML = '';
-    let has = false;
-
-    if (data.firearms?.length) {
-      has = true;
-      menu.innerHTML += `<div class="search-section-hdr">Firearms</div>`;
-      data.firearms.forEach(g => {
-        menu.innerHTML += `
-          <div class="search-result-item" onclick="openDossier('${g.serial}'); hideSearch();">
-            <div><strong>${g.serial}</strong> • ${g.make} ${g.model} <small style="color:var(--text-muted)">(${g.calibre})</small></div>
-            <span style="font-size:0.75rem; color:var(--accent);">${g.location_name}</span>
-          </div>`;
-      });
-    }
-    if (data.customers?.length) {
-      has = true;
-      menu.innerHTML += `<div class="search-section-hdr">Customers</div>`;
-      data.customers.forEach(c => {
-        menu.innerHTML += `
-          <div class="search-result-item" onclick="openCustomerDossier(${c.id}); hideSearch();">
-            <div><strong>${c.name}</strong> <small style="color:var(--text-muted)">${c.phone || c.business_name || ''}</small></div>
-          </div>`;
-      });
-    }
-    if (data.safes?.length) {
-      has = true;
-      menu.innerHTML += `<div class="search-section-hdr">Safes</div>`;
-      data.safes.forEach(s => {
-        menu.innerHTML += `
-          <div class="search-result-item" onclick="openSafeDrawer('${s.id}'); hideSearch();">
-            <div><strong>${s.name}</strong></div>
-            <span style="font-size:0.75rem; color:${s.color}">Cap: ${s.max_capacity}</span>
-          </div>`;
-      });
-    }
-    menu.style.display = has ? 'block' : 'none';
-  }, 140);
-}
-function hideSearch() { document.getElementById('search-dropdown-menu').style.display = 'none'; }
-document.addEventListener('click', (e) => { if (!e.target.closest('.top-search-wrap')) hideSearch(); });
-
-// Print Triggers
-function triggerPrintGunLabel() {
-  document.body.classList.remove('print-safe-mode', 'print-qld-mode');
-  document.body.classList.add('print-gun-mode');
-  window.print();
-  setTimeout(() => { document.body.classList.remove('print-gun-mode'); }, 1200);
-}
-
-function triggerPrintSafePlacard() {
-  if (!activeSafeForPlacard) return;
-  document.getElementById('plc-title').textContent = activeSafeForPlacard.name.toUpperCase();
-  document.getElementById('plc-cat').textContent = activeSafeForPlacard.category.toUpperCase();
-  document.getElementById('plc-cap').textContent = `CAPACITY: ${activeSafeForPlacard.max_capacity || 'N/A'}`;
-
-  renderBarcodeSafely("#plc-barcode", `LOC:${activeSafeForPlacard.id}`, {
-    format: "CODE128", width: 3.2, height: 85, displayValue: true, fontSize: 16, margin: 0
-  });
-
-  document.body.classList.remove('print-gun-mode', 'print-qld-mode');
-  document.body.classList.add('print-safe-mode');
-  window.print();
-  setTimeout(() => { document.body.classList.remove('print-safe-mode'); }, 1200);
-}
-
-function openQldTransferModal() {
-  if (!currentDossierGun) return;
-  activeQldTransferGun = currentDossierGun;
-
-  document.getElementById('qld-cust-name').value = activeQldTransferGun.consignor_name || activeQldTransferGun.customer_db_name || '';
-  document.getElementById('qld-cust-phone').value = activeQldTransferGun.consignor_phone || activeQldTransferGun.customer_db_phone || '';
-  document.getElementById('qld-cust-licence').value = activeQldTransferGun.customer_licence || '';
-
-  renderQldTransferTag();
-  document.getElementById('dossier-modal').classList.remove('open');
-  document.getElementById('qld-transfer-modal').classList.add('open');
-}
-
-function renderQldTransferTag() {
-  if (!activeQldTransferGun) return;
-
-  document.getElementById('prev-sender-name').textContent = (activeSettings.store_name || 'TENTERFIELD FIREARMS').toUpperCase();
-  document.getElementById('prev-sender-lic').textContent = activeSettings.store_licence || 'NSW-DEALER-40911082';
-  document.getElementById('prev-sender-addr').textContent = activeSettings.store_address || '126 Rouse St, Tenterfield NSW 2372';
-  document.getElementById('prev-sender-phone').textContent = activeSettings.store_phone || '(02) 6736 1234';
-
-  const toDealer = document.getElementById('qld-to-dealer').value.trim() || 'WARWICK OUTDOORS & SPORTS';
-  const toLic = document.getElementById('qld-to-licence').value.trim() || '50001234';
-  const toAddr = document.getElementById('qld-to-address').value.trim() || '115 Palmerin St, Warwick QLD 4370';
-  const toPhone = document.getElementById('qld-to-phone').value.trim() || '(07) 4661 1234';
-
-  document.getElementById('prev-to-dealer').textContent = toDealer.toUpperCase();
-  document.getElementById('prev-to-lic').textContent = `QLD DEALER LIC: ${toLic}`;
-  document.getElementById('prev-to-addr').textContent = toAddr;
-  document.getElementById('prev-to-phone').textContent = toPhone;
-
-  const cName = document.getElementById('qld-cust-name').value.trim() || 'JOHNATHAN CAMPBELL';
-  const cLic = document.getElementById('qld-cust-licence').value.trim() || 'PTA-994812';
-  const cPhone = document.getElementById('qld-cust-phone').value.trim() || '0412 345 678';
-
-  document.getElementById('prev-cust-name').textContent = cName.toUpperCase();
-  document.getElementById('prev-cust-lic').textContent = `LIC / PTA: ${cLic}`;
-  document.getElementById('prev-cust-phone').textContent = cPhone ? `PH: ${cPhone}` : '';
-
-  const g = activeQldTransferGun;
-  document.getElementById('prev-gun-title').textContent = `${g.make} ${g.model}`.toUpperCase();
-  document.getElementById('prev-gun-specs').textContent = `${g.calibre} • ${g.action || 'Rifle'} • ${g.category || 'Cat B'}`;
-  document.getElementById('prev-gun-serial').textContent = `SERIAL: ${g.serial}`;
-  document.getElementById('prev-gun-book').textContent = `NSW BOOK IN: ${g.book_no || g.rego_no || 'N/A'}`;
-
-  renderBarcodeSafely("#prev-qld-barcode", g.serial, {
-    format: "CODE128", width: 2.0, height: 40, displayValue: true, fontSize: 12, margin: 0
-  });
-}
-
-function triggerPrintQldTransferTag() {
-  const previewContent = document.getElementById('qld-transfer-preview').innerHTML;
-  const printTarget = document.getElementById('qld-transfer-render');
-  printTarget.innerHTML = previewContent;
-
-  document.body.classList.remove('print-gun-mode', 'print-safe-mode');
-  document.body.classList.add('print-qld-mode');
-  window.print();
-  setTimeout(() => { document.body.classList.remove('print-qld-mode'); }, 1200);
-}
-
-// Safe Capacity Check Safeguard
-function verifySafeCapacity(targetLocId, incomingCount = 1) {
-  const targetSafe = cachedLocations.find(l => l.id === targetLocId);
-  if (!targetSafe || !targetSafe.max_capacity || targetSafe.max_capacity === 0) return true;
-
-  const projectedTotal = (targetSafe.current_count || 0) + incomingCount;
-  if (projectedTotal > targetSafe.max_capacity) {
-    return confirm(`⚠️ CAPACITY WARNING:\nMoving ${incomingCount} firearm(s) into ${targetSafe.name} will put it at ${projectedTotal}/${targetSafe.max_capacity} capacity (${Math.round((projectedTotal/targetSafe.max_capacity)*100)}%).\n\nProceed with transfer anyway?`);
-  }
-  return true;
-}
-
-// Bulk Selection
-function toggleSelectAllGuns(masterChk) {
-  const chks = document.querySelectorAll('.gun-row-chk');
-  chks.forEach(c => {
-    c.checked = masterChk.checked;
-    if (masterChk.checked) selectedGunSerials.add(c.value);
-    else selectedGunSerials.delete(c.value);
-  });
-  updateBulkToolbar();
-}
-
-function handleGunRowCheck(chk, serial) {
-  if (chk.checked) selectedGunSerials.add(serial);
-  else selectedGunSerials.delete(serial);
-  updateBulkToolbar();
-}
-
-function updateBulkToolbar() {
-  const bar = document.getElementById('bulk-action-bar');
-  const countEl = document.getElementById('bulk-selected-count');
-  if (selectedGunSerials.size > 0) {
-    countEl.textContent = `${selectedGunSerials.size} Firearms Selected`;
-    bar.style.display = 'flex';
-  } else {
-    bar.style.display = 'none';
-  }
-}
-
-function clearBulkSelection() {
-  selectedGunSerials.clear();
-  document.querySelectorAll('.gun-row-chk').forEach(c => c.checked = false);
-  const m = document.getElementById('chk-all-guns');
-  if (m) m.checked = false;
-  updateBulkToolbar();
-}
-
-async function executeBulkMoveWithSafeguard() {
-  const destSafe = document.getElementById('bulk-safe-select').value;
-  if (!destSafe || selectedGunSerials.size === 0) return;
-  if (!verifySafeCapacity(destSafe, selectedGunSerials.size)) return;
-
-  const res = await fetch('/api/firearms/bulk-move', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      serials: Array.from(selectedGunSerials),
-      target_location_id: destSafe,
-      operator_name: currentUser.full_name
-    })
-  });
-  if (res.ok) {
-    clearBulkSelection();
-    loadArmoury(currentStorageFilter);
-    loadSafes();
-  }
-}
-
-// Armoury Ledger Filtering & Search
-function filterByStorage(type) {
-  currentStorageFilter = type;
-  loadArmoury(currentStorageFilter);
-}
-
-function onLedgerSearchInput() {
-  currentSearchQuery = document.getElementById('armoury-search').value;
-  loadArmoury(currentStorageFilter);
-}
-
-async function loadArmoury(storageFilter = '') {
-  const q = currentSearchQuery || document.getElementById('armoury-search')?.value || '';
-  let url = `/api/firearms?search=${encodeURIComponent(q)}`;
-  if (storageFilter) url += `&storage_type=${encodeURIComponent(storageFilter)}`;
-  const res = await fetch(url);
-  cachedFirearms = await res.json();
-
-  const tb = document.getElementById('armoury-table-body');
-  const recentTb = document.getElementById('two-scan-recent-table');
-  tb.innerHTML = ''; if (recentTb) recentTb.innerHTML = '';
-
-  let total = 0, sale = 0, storage = 0, layby = 0, csg = 0;
-
-  cachedFirearms.forEach((g, idx) => {
-    total++;
-    if (g.storage_type === 'Sale') sale++;
-    else if (g.storage_type === 'Customer Storage') storage++;
-    else if (g.storage_type === 'Layby') layby++;
-    else if (g.storage_type === 'Consignment Sale') csg++;
-
-    const isChecked = selectedGunSerials.has(g.serial) ? 'checked' : '';
-    const ownerDisplay = (g.storage_type === 'Sale') ? '-' : (g.customer_name || '-');
-    const tr = `
-      <tr>
-        <td onclick="event.stopPropagation()"><input type="checkbox" class="gun-row-chk" value="${g.serial}" ${isChecked} onchange="handleGunRowCheck(this, '${g.serial}')"></td>
-        <td onclick="openDossier('${g.serial}')"><strong>${g.serial}</strong></td>
-        <td onclick="openDossier('${g.serial}')"><span style="color:${g.location_color || 'var(--accent)'}; font-weight:800;">${g.location_name || g.current_location_id}</span></td>
-        <td onclick="openDossier('${g.serial}')">${g.make} ${g.model}</td>
-        <td onclick="openDossier('${g.serial}')">${g.calibre}</td>
-        <td onclick="openDossier('${g.serial}')"><span class="tag-badge">${g.category || 'Cat B'}</span></td>
-        <td onclick="openDossier('${g.serial}')">${g.storage_type}</td>
-        <td onclick="openDossier('${g.serial}')">${ownerDisplay}</td>
-        <td onclick="openDossier('${g.serial}')">$${g.price.toFixed(2)}</td>
-      </tr>
-    `;
-    tb.innerHTML += tr;
-    if (idx < 6 && recentTb) recentTb.innerHTML += tr;
-  });
-
-  document.getElementById('kpi-total').textContent = total;
-  document.getElementById('kpi-sale').textContent = sale;
-  document.getElementById('kpi-storage').textContent = storage;
-  document.getElementById('kpi-layby').textContent = layby;
-  document.getElementById('kpi-csg').textContent = csg;
-}
-
-// Safes & Capacities
-async function loadSafes() {
-  const res = await fetch('/api/locations');
-  cachedLocations = await res.json();
-  const box = document.getElementById('safes-container');
-  const qb = document.getElementById('quick-safe-btns');
-  const inSafe = document.getElementById('in-safe');
-  const bulkSafe = document.getElementById('bulk-safe-select');
-  const eSafe = document.getElementById('egun-safe');
-
-  box.innerHTML = ''; qb.innerHTML = ''; inSafe.innerHTML = ''; bulkSafe.innerHTML = '';
-  if (eSafe) eSafe.innerHTML = '';
-
-  cachedLocations.forEach(s => {
-    const isOver = s.percent_full > 100;
-    const barColor = isOver ? 'var(--danger)' : (s.percent_full >= 75 ? 'var(--warning)' : s.color || 'var(--accent)');
-    const pctLabel = isOver ? `${s.percent_full}% OVER` : `${s.percent_full}%`;
-
-    box.innerHTML += `
-      <div class="safe-card-box" style="border-top: 4px solid ${s.color || 'var(--border)'};" onclick="openSafeDrawer('${s.id}')">
-        <div class="safe-header">
-          <span style="font-weight:900; font-size:1.05rem;">${s.name}</span>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openEditSafeModal('${s.id}')" title="Edit Safe Settings">✏️</button>
-            <span style="font-size:0.75rem; font-weight:800; color:${barColor};">${pctLabel}</span>
-          </div>
+        <div class="card" id="safe-drawer-card" style="display:none;margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <h3 style="margin:0;" id="safe-drawer-title">Safe Contents</h3>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <select id="mass-transfer-target" style="width:190px;"></select>
+                    <button class="btn btn-warn audit-hide" onclick="massTransferSafeContents()">Migrate Entire Safe</button>
+                    <button class="btn btn-primary" onclick="printCurrentSafePlacard()">🖨️ Print 62×80mm Safe Placard</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Serial</th><th>SKU</th><th>Rego / Book</th><th>Firearm</th><th>Cat</th><th>Storage Type</th><th>Owner / Client</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="safe-drawer-tbody"></tbody>
+                </table>
+            </div>
         </div>
-        <div style="font-size:0.75rem; color:var(--text-muted);">${s.category}</div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" style="width:${Math.min(100, s.percent_full)}%; background:${barColor};"></div>
+    </section>
+
+    <!-- 4. ADD GUN & CYANLABEL STUDIO TAB -->
+    <section id="tab-intake" class="tab-pane">
+        <div style="display:grid;grid-template-columns: 1.4fr 1fr;gap:16px;align-items:start;">
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h3 style="margin:0;">Armoury Intake & CyanLabel Studio</h3>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn" onclick="fillSampleIntake('gun')">Sample Gun</button>
+                        <button class="btn" onclick="fillSampleIntake('storage')">Sample Storage</button>
+                        <button class="btn" onclick="fillSampleIntake('consign')">Sample Consignment</button>
+                        <button class="btn" onclick="clearIntakeForm()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Serial Number *</label>
+                        <input type="text" id="in-serial" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Hike POS SKU (Auto if blank)</label>
+                        <input type="text" id="in-sku" placeholder="TF-XXXXXX" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>NSW Rego Number</label>
+                        <input type="text" id="in-rego" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Dealer Book Reference</label>
+                        <input type="text" id="in-book" placeholder="BK-2026-XX" oninput="updateLiveLabelPreview()">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Item Type</label>
+                        <select id="in-type" onchange="updateLiveLabelPreview()">
+                            <option value="Firearm">Firearm</option>
+                            <option value="Thermal / Night Vision">Thermal / Night Vision</option>
+                            <option value="Optics / Scope">Optics / Scope</option>
+                            <option value="Accessory">Accessory</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Licence Category</label>
+                        <select id="in-category" onchange="updateLiveLabelPreview()">
+                            <option value="Cat A">Cat A</option>
+                            <option value="Cat B">Cat B</option>
+                            <option value="Cat C">Cat C</option>
+                            <option value="Cat D">Cat D</option>
+                            <option value="Cat H">Cat H</option>
+                            <option value="Non-Regulated">Non-Regulated</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Make / Manufacturer *</label>
+                        <input type="text" id="in-make" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Model *</label>
+                        <input type="text" id="in-model" oninput="updateLiveLabelPreview()">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Calibre / Magnification *</label>
+                        <input type="text" id="in-calibre" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Action</label>
+                        <input type="text" id="in-action" placeholder="Bolt, Lever, Pump, U/O..." oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Barrel Length</label>
+                        <input type="text" id="in-barrel" placeholder="22&quot;" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Shot Capacity</label>
+                        <input type="text" id="in-capacity" placeholder="4-Shot" oninput="updateLiveLabelPreview()">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Storage Workflow Type</label>
+                        <select id="in-storage-type" onchange="toggleOwnerIntakeFields(); updateLiveLabelPreview();">
+                            <option value="Sale (Floor Stock)">Sale (Floor Stock)</option>
+                            <option value="Customer Storage">Customer Storage</option>
+                            <option value="Layby">Layby</option>
+                            <option value="Consignment Sale">Consignment Sale</option>
+                            <option value="Workshop / Repair">Workshop / Repair</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Condition Badge</label>
+                        <select id="in-condition" onchange="toggleOwnerIntakeFields(); updateLiveLabelPreview();">
+                            <option value="New">New</option>
+                            <option value="Pre-Owned">Pre-Owned</option>
+                            <option value="Consignment">Consignment</option>
+                            <option value="Gun Storage">Gun Storage</option>
+                            <option value="Ex-Demo">Ex-Demo</option>
+                            <option value="For Parts">For Parts</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Physical Safe Assignment</label>
+                        <select id="in-location"></select>
+                    </div>
+                    <div>
+                        <label>Layby Milestone (If Layby)</label>
+                        <select id="in-layby-stage">
+                            <option value="">-- N/A --</option>
+                            <option value="Waiting for PTA">Waiting for PTA</option>
+                            <option value="Waiting for Licence">Waiting for Licence</option>
+                            <option value="Safe Approval">Safe Approval</option>
+                            <option value="Awaiting Balance">Awaiting Balance</option>
+                            <option value="Ready for Collection">Ready for Collection</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Condition-Aware Owner / Consignor / PTA Block -->
+                <div id="in-owner-block" style="display:none;background:var(--surface-alt);padding:12px;border-radius:6px;margin-bottom:12px;border:1px solid var(--border);">
+                    <div style="font-weight:800;font-size:12px;margin-bottom:8px;color:var(--primary);">👤 Owner / Consignor / Layby Customer Particulars</div>
+                    <div class="form-grid" style="margin-bottom:0;">
+                        <div>
+                            <label>Customer / Owner Name</label>
+                            <input type="text" id="in-owner-name" oninput="updateLiveLabelPreview()">
+                        </div>
+                        <div>
+                            <label>Phone Number</label>
+                            <input type="text" id="in-owner-phone" oninput="updateLiveLabelPreview()">
+                        </div>
+                        <div>
+                            <label>Customer Licence No</label>
+                            <input type="text" id="in-owner-lic">
+                        </div>
+                        <div>
+                            <label>Licence Categories</label>
+                            <input type="text" id="in-owner-cats" value="Cat A, Cat B">
+                        </div>
+                        <div>
+                            <label>NSW PTA Number</label>
+                            <input type="text" id="in-pta" placeholder="PTA-XXXXXX">
+                        </div>
+                        <div>
+                            <label>Consignment Split % / Min ($)</label>
+                            <div style="display:flex;gap:4px;">
+                                <input type="number" id="in-comm-pct" value="15" title="Commission %">
+                                <input type="number" id="in-comm-min" value="50" title="Minimum Fee $">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Retail Price ($)</label>
+                        <input type="number" step="0.01" id="in-price" value="0" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Was / Strikethrough Price ($)</label>
+                        <input type="number" step="0.01" id="in-was-price" value="0" oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Dealer Cost Price ($ Unprinted)</label>
+                        <input type="number" step="0.01" id="in-cost-price" value="0">
+                    </div>
+                    <div>
+                        <label>Acquired From (Supplier/Seller)</label>
+                        <input type="text" id="in-supplier" placeholder="NIOA / OSA / Private">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div>
+                        <label>Printed Tag Notes (Prints on thermal label)</label>
+                        <input type="text" id="in-printed-notes" placeholder="Includes Scope & Rings..." oninput="updateLiveLabelPreview()">
+                    </div>
+                    <div>
+                        <label>Internal Vault Notes (Xero / Compliance — Unprinted)</label>
+                        <input type="text" id="in-notes" placeholder="Internal notes...">
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-primary" style="flex:1;justify-content:center;padding:11px;" onclick="saveIntakeFirearm(false)">💾 Save to Vault Ledger</button>
+                    <button class="btn btn-success" style="flex:1;justify-content:center;padding:11px;" onclick="saveIntakeFirearm(true)">🖨️ Save & Print Thermal Tag</button>
+                </div>
+            </div>
+
+            <!-- Live Pure-DOM Thermal Label Preview -->
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h3 style="margin:0;">Live CyanLabel Thermal Preview</h3>
+                    <select id="label-profile-select" style="width:165px;" onchange="updateLiveLabelPreview()">
+                        <option value="62mm">Brother 62mm Roll</option>
+                        <option value="72mm">72mm × 80mm Receipt</option>
+                    </select>
+                </div>
+                <div id="live-thermal-wrapper" class="thermal-preview-box"></div>
+                <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;padding:10px;" onclick="printLiveLabelPreview()">🖨️ Print Current Thermal Label (Ctrl+Enter)</button>
+            </div>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:800;">
-          <span>${s.current_count} Firearms</span>
-          <span>Max: ${s.max_capacity || '∞'}</span>
+    </section>
+
+    <!-- 5. LAYBYS & CONSIGNMENTS TAB -->
+    <section id="tab-laybys" class="tab-pane">
+        <div class="card">
+            <h3 style="margin-top:0;">⏳ Active Laybys Milestone Pipeline</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Serial</th><th>Firearm</th><th>Cat</th><th>Customer & Phone</th><th>Licence & Categories</th><th>PTA Number</th><th>Layby Stage</th><th>Price</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="laybys-tbody"></tbody>
+                </table>
+            </div>
         </div>
-      </div>
-    `;
 
-    qb.innerHTML += `<button type="button" class="btn btn-outline btn-sm" onclick="executeAllocation('${s.id}')">${s.name}</button>`;
-    const opt = `<option value="${s.id}">${s.name}</option>`;
-    inSafe.innerHTML += opt;
-    bulkSafe.innerHTML += opt;
-    if (eSafe) eSafe.innerHTML += opt;
-  });
+        <div class="card">
+            <h3 style="margin-top:0;">🤝 Consignment Split & Settlement Ledger</h3>
+            <p style="font-size:12px;color:var(--text-muted);">Automated dealer commission calculation (`max(Retail × %, Minimum Fee)`) and net consignor payout tracking.</p>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Serial</th><th>Firearm</th><th>Consignor & Phone</th><th>Sale Status</th><th>Retail Price</th><th>Commission Split</th><th>Net Consignor Payout</th><th>Settlement Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="consignments-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
-  restoreIntakeDefaults();
-}
+    <!-- 6. SPECIAL ORDERS & INDENTS TAB -->
+    <section id="tab-orders" class="tab-pane">
+        <div class="card">
+            <h3 style="margin-top:0;">📦 Log New Customer Special Order / Indent</h3>
+            <div class="form-grid">
+                <div><label>Customer Name *</label><input type="text" id="so-cust-name"></div>
+                <div><label>Customer Phone</label><input type="text" id="so-cust-phone"></div>
+                <div><label>Customer Licence No</label><input type="text" id="so-cust-lic"></div>
+                <div><label>Make *</label><input type="text" id="so-make"></div>
+                <div><label>Model *</label><input type="text" id="so-model"></div>
+                <div><label>Calibre</label><input type="text" id="so-calibre"></div>
+                <div>
+                    <label>Category</label>
+                    <select id="so-cat"><option>Cat A</option><option>Cat B</option><option>Cat C</option><option>Cat H</option></select>
+                </div>
+                <div>
+                    <label>Distributor / Supplier</label>
+                    <select id="so-supplier"><option>NIOA</option><option>Outdoor Sporting Agencies (OSA)</option><option>Winchester Australia</option><option>Other</option></select>
+                </div>
+                <div><label>Distributor PO Ref</label><input type="text" id="so-po" placeholder="PO-NIOA-XXXX"></div>
+                <div><label>ETA Date</label><input type="date" id="so-eta"></div>
+                <div><label>Deposit Paid ($)</label><input type="number" step="0.01" id="so-deposit" value="0"></div>
+                <div><label>Quoted Retail Price ($)</label><input type="number" step="0.01" id="so-total" value="0"></div>
+                <div><label>PTA Number</label><input type="text" id="so-pta"></div>
+                <div><label>Arrived Serial (Optional)</label><input type="text" id="so-serial"></div>
+                <div>
+                    <label>Order Stage</label>
+                    <select id="so-status">
+                        <option>Staged / Ordered</option>
+                        <option>Arrived in Store</option>
+                        <option>Waiting on Docs</option>
+                        <option>Ready for Collection</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveSpecialOrder()">+ Save Special Order</button>
+        </div>
 
-function openAddSafeModal() {
-  document.getElementById('safe-edit-modal-title').textContent = "Add New Safe Location";
-  document.getElementById('sf-id').value = "";
-  document.getElementById('sf-id').readOnly = false;
-  document.getElementById('sf-name').value = "";
-  document.getElementById('sf-cat').value = "Safe";
-  document.getElementById('sf-cap').value = 25;
-  document.getElementById('sf-color').value = "#0284c7";
-  document.getElementById('sf-notes').value = "";
-  document.getElementById('safe-edit-modal').classList.add('open');
-}
+        <div class="card">
+            <h3 style="margin-top:0;">Active Special Orders Pipeline</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Order ID</th><th>Customer</th><th>Item Particulars</th><th>Supplier & PO Ref</th><th>ETA</th><th>Deposit / Total</th><th>PTA / Serial</th><th>Stage</th><th>1-Click Convert</th></tr>
+                    </thead>
+                    <tbody id="special-orders-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
-function openEditSafeModal(locId) {
-  const safe = cachedLocations.find(l => l.id === locId);
-  if (!safe) return;
-  document.getElementById('safe-edit-modal-title').textContent = `Configure Safe: ${safe.name}`;
-  document.getElementById('sf-id').value = safe.id;
-  document.getElementById('sf-id').readOnly = true;
-  document.getElementById('sf-name').value = safe.name;
-  document.getElementById('sf-cat').value = safe.category;
-  document.getElementById('sf-cap').value = safe.max_capacity;
-  document.getElementById('sf-color').value = safe.color || "#0284c7";
-  document.getElementById('sf-notes').value = safe.notes || "";
-  document.getElementById('safe-drawer-modal').classList.remove('open');
-  document.getElementById('safe-edit-modal').classList.add('open');
-}
+    <!-- 7. WORKSHOP & GUNSMITHING REPAIRS TAB -->
+    <section id="tab-workshop" class="tab-pane">
+        <div class="card audit-hide">
+            <h3 style="margin-top:0;">🔧 Create Gunsmithing / Service Work Order</h3>
+            <div class="form-grid">
+                <div><label>Firearm Serial</label><input type="text" id="wo-serial" placeholder="Scan or type serial"></div>
+                <div><label>Customer Name *</label><input type="text" id="wo-cust"></div>
+                <div><label>Customer Phone</label><input type="text" id="wo-phone"></div>
+                <div><label>Make & Model *</label><input type="text" id="wo-makemodel"></div>
+                <div><label>Calibre & Category</label><input type="text" id="wo-calcat" placeholder="308 WIN • Cat B"></div>
+                <div>
+                    <label>Service Type</label>
+                    <select id="wo-type">
+                        <option>Scope Mounting & Bore Sight</option>
+                        <option>Barrel Threading</option>
+                        <option>General Repair / Firing Pin</option>
+                        <option>Cerakote / Stock Bedding</option>
+                        <option>Deep Clean & Inspection</option>
+                    </select>
+                </div>
+                <div><label>Fault / Work Description</label><input type="text" id="wo-desc"></div>
+                <div><label>Parts Used</label><input type="text" id="wo-parts"></div>
+                <div><label>Labor ($)</label><input type="number" step="0.01" id="wo-labor" value="65"></div>
+                <div><label>Parts ($)</label><input type="number" step="0.01" id="wo-parts-cost" value="0"></div>
+                <div>
+                    <label>Status</label>
+                    <select id="wo-status">
+                        <option>Awaiting Assessment</option>
+                        <option>In Progress</option>
+                        <option>Awaiting Parts</option>
+                        <option>Tested & Ready for Collection</option>
+                        <option>Completed</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Test Fired?</label>
+                    <select id="wo-testfired"><option>No</option><option>Yes - Passed</option></select>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="saveWorkOrder()">+ Save Work Order Ticket</button>
+        </div>
 
-async function saveSafeConfig(e) {
-  e.preventDefault();
-  const payload = {
-    id: document.getElementById('sf-id').value.trim().toUpperCase(),
-    name: document.getElementById('sf-name').value.trim(),
-    category: document.getElementById('sf-cat').value,
-    max_capacity: parseInt(document.getElementById('sf-cap').value) || 0,
-    color: document.getElementById('sf-color').value,
-    notes: document.getElementById('sf-notes').value.trim()
-  };
-  await fetch('/api/locations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  closeModals();
-  loadSafes();
-}
+        <div class="card">
+            <h3 style="margin-top:0;">Active Workshop & Gunsmithing Jobs</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Job Ticket</th><th>Serial</th><th>Customer</th><th>Firearm</th><th>Service & Parts</th><th>Test Fired</th><th>Total ($)</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="workshop-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 
-async function openSafeDrawer(locId) {
-  const safe = cachedLocations.find(l => l.id === locId);
-  activeSafeForPlacard = safe;
-  document.getElementById('safe-drawer-name').textContent = `${safe.name} • Contents`;
-  document.getElementById('safe-drawer-meta').textContent = `${safe.category} • ${safe.current_count} / ${safe.max_capacity || '∞'} Units (${safe.percent_full}%)`;
+    <!-- 8. POWDER, PRIMERS & AMMO (NEQ) TAB -->
+    <section id="tab-powder" class="tab-pane">
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h3 style="margin:0;">🧨 Statutory Propellant & Primer Net Explosive Quantity (NEQ)</h3>
+                    <p style="margin:4px 0 0;font-size:12px;color:var(--text-muted);">Tracks smokeless powder, black powder, primers, and factory ammunition lots against dealer storage caps.</p>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:22px;font-weight:900;"><span id="neq-curr-val">0.0</span> kg / <span id="neq-max-val">50.0</span> kg Max NEQ</div>
+                    <div id="neq-pct-badge" class="badge badge-info">0% Statutory Limit</div>
+                </div>
+            </div>
+            <div class="safe-bar-bg" style="height:14px;margin-top:10px;">
+                <div id="neq-progress-bar" style="height:100%;width:0%;background:var(--primary);"></div>
+            </div>
+        </div>
 
-  const res = await fetch(`/api/locations/${locId}/firearms`);
-  const guns = await res.json();
-  const tb = document.getElementById('safe-drawer-table');
-  tb.innerHTML = '';
-  guns.forEach(g => {
-    const ownerDisplay = (g.storage_type === 'Sale') ? '-' : (g.customer_name || '-');
-    tb.innerHTML += `
-      <tr>
-        <td><strong>${g.serial}</strong></td>
-        <td>${g.make} ${g.model}</td>
-        <td>${g.calibre}</td>
-        <td>${g.storage_type}</td>
-        <td>${ownerDisplay}</td>
-        <td><button class="btn btn-sm" onclick="openDossier('${g.serial}')">View</button></td>
-      </tr>`;
-  });
-  document.getElementById('safe-drawer-modal').classList.add('open');
-}
-
-// Two-Scan
-document.getElementById('scan-in-1').addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter') {
-    const val = e.target.value.trim();
-    if (!val) return;
-    const f = new FormData(); f.append('barcode', val);
-    const res = await fetch('/api/scan', { method: 'POST', body: f });
-    const data = await res.json();
-    if (data.scan_type === 'firearm_query') {
-      lockedGun = data.firearm;
-      document.getElementById('locked-gun-name').textContent = `${lockedGun.make} ${lockedGun.model} [${lockedGun.serial}]`;
-      document.getElementById('locked-gun-meta').textContent = `${lockedGun.calibre} • Current: ${lockedGun.location_name || lockedGun.current_location_id}`;
-      document.getElementById('step-1-locked').style.display = 'block';
-      document.getElementById('card-step-1').classList.remove('active-step');
-      document.getElementById('card-step-2').classList.add('active-step');
-      const in2 = document.getElementById('scan-in-2');
-      in2.disabled = false;
-      in2.focus();
-    } else {
-      switchTab('tab-intake');
-      document.getElementById('in-serial').value = val;
-      renderPreview();
-    }
-  }
-});
-
-document.getElementById('scan-in-2').addEventListener('keydown', async (e) => {
-  if (e.key === 'Enter') {
-    const val = e.target.value.trim();
-    if (val && lockedGun) executeAllocation(val);
-  }
-});
-
-async function executeAllocation(targetSafe) {
-  if (!lockedGun) return;
-  if (!verifySafeCapacity(targetSafe, 1)) return;
-
-  const res = await fetch('/api/scan/allocate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ serial: lockedGun.serial, target_location_id: targetSafe, operator_name: currentUser.full_name })
-  });
-  if (res.ok) {
-    resetTwoScan();
-    loadSafes();
-    loadArmoury(currentStorageFilter);
-  }
-}
-
-function resetTwoScan() {
-  lockedGun = null;
-  document.getElementById('card-step-1').classList.add('active-step');
-  document.getElementById('card-step-2').classList.remove('active-step');
-  document.getElementById('step-1-locked').style.display = 'none';
-  const in1 = document.getElementById('scan-in-1');
-  const in2 = document.getElementById('scan-in-2');
-  in1.value = ''; in2.value = ''; in2.disabled = true;
-  in1.focus();
-}
-
-// Dossier View & Actions
-async function openDossier(serial) {
-  const res = await fetch(`/api/firearms/${encodeURIComponent(serial)}`);
-  currentDossierGun = await res.json();
-
-  document.getElementById('dos-title').textContent = `${currentDossierGun.make} ${currentDossierGun.model}`;
-  document.getElementById('dos-specs').textContent = `${currentDossierGun.calibre} • ${currentDossierGun.action} • ${currentDossierGun.category || 'Cat B'} • ${currentDossierGun.condition || 'Used'}`;
-  document.getElementById('dos-safe-badge').textContent = currentDossierGun.location_name || currentDossierGun.current_location_id;
-  document.getElementById('dos-serial').textContent = currentDossierGun.serial;
-  document.getElementById('dos-sku').textContent = currentDossierGun.sku || currentDossierGun.serial;
-  document.getElementById('dos-rego').textContent = currentDossierGun.rego_no || '-';
-  document.getElementById('dos-book').textContent = currentDossierGun.book_no || '-';
-  document.getElementById('dos-condition-report').textContent = currentDossierGun.condition_report || 'No condition report recorded.';
-
-  const csgCard = document.getElementById('dos-consignor-card');
-  if (currentDossierGun.storage_type !== 'Sale' && (currentDossierGun.consignor_name || currentDossierGun.customer_db_name)) {
-    csgCard.style.display = 'block';
-    document.getElementById('dos-consignor-name').textContent = currentDossierGun.consignor_name || currentDossierGun.customer_db_name;
-    document.getElementById('dos-consignor-phone').textContent = currentDossierGun.consignor_phone || currentDossierGun.customer_db_phone || 'No phone recorded';
-    document.getElementById('dos-storage-chip').textContent = currentDossierGun.storage_type.toUpperCase();
-  } else {
-    csgCard.style.display = 'none';
-  }
-
-  document.getElementById('dossier-modal').classList.add('open');
-}
-
-function viewCustomerFromDossier() {
-  if (currentDossierGun.customer_id) {
-    openCustomerDossier(currentDossierGun.customer_id);
-  } else if (currentDossierGun.consignor_name) {
-    const cust = cachedCustomers.find(c => c.name.toUpperCase() === currentDossierGun.consignor_name.toUpperCase());
-    if (cust) openCustomerDossier(cust.id);
-    else alert("Customer record not yet cataloged.");
-  }
-}
-
-function openMoveSafeModal() {
-  if (!currentDossierGun) return;
-  document.getElementById('reassign-gun-title').textContent = `${currentDossierGun.make} ${currentDossierGun.model} (${currentDossierGun.serial})`;
-  const list = document.getElementById('reassign-safes-list');
-  list.innerHTML = '';
-  cachedLocations.forEach(s => {
-    list.innerHTML += `<button class="btn btn-outline" style="text-align:left; padding:10px; font-weight:800;" onclick="executeDossierReassign('${s.id}')">📦 Move to ${s.name} (${s.category})</button>`;
-  });
-  document.getElementById('reassign-safe-modal').classList.add('open');
-}
-
-function closeReassignModal() {
-  document.getElementById('reassign-safe-modal').classList.remove('open');
-}
-
-async function executeDossierReassign(targetSafe) {
-  if (!currentDossierGun) return;
-  if (!verifySafeCapacity(targetSafe, 1)) return;
-
-  const res = await fetch('/api/scan/allocate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ serial: currentDossierGun.serial, target_location_id: targetSafe, operator_name: currentUser.full_name })
-  });
-  if (res.ok) {
-    closeReassignModal();
-    openDossier(currentDossierGun.serial);
-    loadSafes();
-    loadArmoury(currentStorageFilter);
-  }
-}
-
-function promptDeleteGun() {
-  if (!currentDossierGun) return;
-  document.getElementById('del-gun-label').textContent = `${currentDossierGun.serial} (${currentDossierGun.make} ${currentDossierGun.model})`;
-  document.getElementById('delete-confirm-modal').classList.add('open');
-}
-
-function closeDeleteModal() {
-  document.getElementById('delete-confirm-modal').classList.remove('open');
-}
-
-async function confirmDeleteFirearm() {
-  if (!currentDossierGun) return;
-  await fetch(`/api/firearms/${encodeURIComponent(currentDossierGun.serial)}`, { method: 'DELETE' });
-  closeDeleteModal();
-  closeModals();
-  loadArmoury(currentStorageFilter);
-  loadSafes();
-}
-
-function openEditFirearmModal() {
-  const g = currentDossierGun;
-  if (!g) return;
-  document.getElementById('egun-serial').value = g.serial;
-  document.getElementById('egun-sku').value = g.sku || g.serial;
-  document.getElementById('egun-make').value = g.make;
-  document.getElementById('egun-model').value = g.model;
-  document.getElementById('egun-calibre').value = g.calibre;
-  document.getElementById('egun-cat').value = g.category || 'Cat B';
-  document.getElementById('egun-cond').value = g.condition || 'Used';
-  document.getElementById('egun-cond-report').value = g.condition_report || '';
-  document.getElementById('egun-storage-type').value = g.storage_type;
-  document.getElementById('egun-safe').value = g.current_location_id;
-  document.getElementById('egun-owner').value = g.consignor_name || '';
-  document.getElementById('egun-phone').value = g.consignor_phone || '';
-  document.getElementById('egun-rego').value = g.rego_no || '';
-  document.getElementById('egun-book').value = g.book_no || '';
-  document.getElementById('egun-price').value = g.price;
-  document.getElementById('egun-was').value = g.was_price;
-  document.getElementById('egun-notes').value = g.notes || '';
-
-  document.getElementById('dossier-modal').classList.remove('open');
-  document.getElementById('gun-edit-modal').classList.add('open');
-}
-
-async function saveEditedGun(e) {
-  e.preventDefault();
-  const payload = {
-    serial: document.getElementById('egun-serial').value.trim(),
-    sku: document.getElementById('egun-sku').value.trim(),
-    make: document.getElementById('egun-make').value.trim(),
-    model: document.getElementById('egun-model').value.trim(),
-    calibre: document.getElementById('egun-calibre').value.trim(),
-    category: document.getElementById('egun-cat').value,
-    condition: document.getElementById('egun-cond').value,
-    condition_report: document.getElementById('egun-cond-report').value.trim(),
-    storage_type: document.getElementById('egun-storage-type').value,
-    current_location_id: document.getElementById('egun-safe').value,
-    consignor_name: document.getElementById('egun-owner').value.trim(),
-    consignor_phone: document.getElementById('egun-phone').value.trim(),
-    rego_no: document.getElementById('egun-rego').value.trim(),
-    book_no: document.getElementById('egun-book').value.trim(),
-    price: parseFloat(document.getElementById('egun-price').value) || 0.0,
-    was_price: parseFloat(document.getElementById('egun-was').value) || 0.0,
-    notes: document.getElementById('egun-notes').value.trim()
-  };
-
-  await fetch('/api/firearms', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  closeModals();
-  openDossier(payload.serial);
-  loadArmoury(currentStorageFilter);
-  loadSafes();
-}
-
-function printFromDossier() {
-  switchTab('tab-intake');
-  document.getElementById('in-serial').value = currentDossierGun.serial;
-  document.getElementById('in-sku').value = currentDossierGun.sku || currentDossierGun.serial;
-  document.getElementById('in-make').value = currentDossierGun.make;
-  document.getElementById('in-model').value = currentDossierGun.model;
-  document.getElementById('in-calibre').value = currentDossierGun.calibre;
-  document.getElementById('in-cat').value = currentDossierGun.category || 'Cat B';
-  document.getElementById('in-cond').value = currentDossierGun.condition || 'Used';
-  document.getElementById('in-cond-report').value = currentDossierGun.condition_report || '';
-  document.getElementById('in-storage-type').value = currentDossierGun.storage_type;
-  document.getElementById('in-price').value = currentDossierGun.price;
-  handleStorageTypeChange();
-  renderPreview();
-  closeModals();
-}
-
-// Customers Directory
-async function loadCustomers() {
-  const res = await fetch('/api/customers');
-  cachedCustomers = await res.json();
-  const tb = document.getElementById('customers-table-body');
-  tb.innerHTML = '';
-  cachedCustomers.forEach(c => {
-    tb.innerHTML += `
-      <tr onclick="openCustomerDossier(${c.id})">
-        <td><strong>${c.name}</strong></td>
-        <td>${c.business_name || '-'}</td>
-        <td>${c.phone || '-'}</td>
-        <td>${c.licence_no || '-'}</td>
-        <td><strong>${c.active_guns}</strong></td>
-        <td>${c.storage_guns}</td>
-        <td>${c.consignment_guns}</td>
-        <td><button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openCustomerDossier(${c.id})">Profile</button></td>
-      </tr>
-    `;
-  });
-}
-
-function openAddCustomerModal() {
-  document.getElementById('cust-name').value = "";
-  document.getElementById('cust-biz').value = "";
-  document.getElementById('cust-phone').value = "";
-  document.getElementById('cust-email').value = "";
-  document.getElementById('cust-lic').value = "";
-  document.getElementById('cust-addr').value = "";
-  document.getElementById('customer-modal').classList.add('open');
-}
-
-async function saveCustomer(e) {
-  e.preventDefault();
-  const payload = {
-    name: document.getElementById('cust-name').value.trim(),
-    business_name: document.getElementById('cust-biz').value.trim(),
-    phone: document.getElementById('cust-phone').value.trim(),
-    email: document.getElementById('cust-email').value.trim(),
-    licence_no: document.getElementById('cust-lic').value.trim(),
-    address: document.getElementById('cust-addr').value.trim()
-  };
-  await fetch('/api/customers', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  closeModals();
-  loadCustomers();
-}
-
-async function openCustomerDossier(cid) {
-  const res = await fetch(`/api/customers/${cid}`);
-  const c = await res.json();
-  document.getElementById('cdos-name').textContent = c.name;
-  document.getElementById('cdos-sub').textContent = c.business_name || 'Individual Customer Record';
-  document.getElementById('cdos-phone').textContent = c.phone || '-';
-  document.getElementById('cdos-lic').textContent = c.licence_no || '-';
-  document.getElementById('cdos-email').textContent = c.email || '-';
-
-  const tb = document.getElementById('cdos-guns-table');
-  tb.innerHTML = '';
-  (c.firearms || []).forEach(g => {
-    tb.innerHTML += `
-      <tr>
-        <td><strong>${g.serial}</strong></td>
-        <td>${g.make} ${g.model}</td>
-        <td>${g.calibre}</td>
-        <td>${g.storage_type}</td>
-        <td>${g.location_name}</td>
-        <td><button class="btn btn-sm" onclick="openDossier('${g.serial}')">View</button></td>
-      </tr>
-    `;
-  });
-  document.getElementById('customer-dossier-modal').classList.add('open');
-}
-
-// Sticky Form Defaults (Intake QoL)
-function persistIntakeDefaults() {
-  const defaults = {
-    safe: document.getElementById('in-safe').value,
-    cat: document.getElementById('in-cat').value,
-    cond: document.getElementById('in-cond').value,
-    storageType: document.getElementById('in-storage-type').value
-  };
-  localStorage.setItem('cyanstock_intake_defaults', JSON.stringify(defaults));
-}
-
-function restoreIntakeDefaults() {
-  try {
-    const raw = localStorage.getItem('cyanstock_intake_defaults');
-    if (!raw) return;
-    const d = JSON.parse(raw);
-    if (d.safe && document.getElementById('in-safe')) document.getElementById('in-safe').value = d.safe;
-    if (d.cat && document.getElementById('in-cat')) document.getElementById('in-cat').value = d.cat;
-    if (d.cond && document.getElementById('in-cond')) document.getElementById('in-cond').value = d.cond;
-    if (d.storageType && document.getElementById('in-storage-type')) {
-      document.getElementById('in-storage-type').value = d.storageType;
-      handleStorageTypeChange();
-    }
-  } catch(e) {}
-}
-
-// Intake Studio
-function handleStorageTypeChange() {
-  const type = document.getElementById('in-storage-type').value;
-  const box = document.getElementById('owner-fields-box');
-  if (type === 'Sale') box.style.display = 'none';
-  else {
-    box.style.display = 'grid';
-    document.getElementById('in-owner-lbl').textContent = type === 'Consignment Sale' ? 'Consignor Name *' : 'Owner / Client Name *';
-  }
-}
-
-function renderPreview() {
-  const make = document.getElementById('in-make').value.trim() || 'Make';
-  const model = document.getElementById('in-model').value.trim() || 'Model';
-  const calibre = document.getElementById('in-calibre').value.trim() || 'Calibre';
-  const action = document.getElementById('in-action').value.trim();
-  const specs = document.getElementById('in-specs').value.trim();
-  const price = parseFloat(document.getElementById('in-price').value) || 0.0;
-  const was = parseFloat(document.getElementById('in-was').value) || 0.0;
-  const serial = document.getElementById('in-serial').value.trim() || 'SERIAL';
-  const sku = document.getElementById('in-sku').value.trim() || serial;
-  const storageType = document.getElementById('in-storage-type').value;
-  const condTag = document.getElementById('in-cond').value.toUpperCase();
-
-  document.getElementById('tag-title-txt').textContent = `${make} ${model}`;
-  document.getElementById('tag-cat-badge').textContent = document.getElementById('in-cat').value;
-  document.getElementById('tag-cond-badge').textContent = condTag;
-
-  let specParts = [calibre];
-  if (action) specParts.push(action);
-  if (specs) specParts.push(specs);
-  document.getElementById('tag-spec-txt').textContent = specParts.join(' • ');
-
-  const condReport = document.getElementById('in-cond-report').value.trim();
-  document.getElementById('tag-cond-report-row').textContent = condReport ? `REPORT: ${condReport}` : '';
-
-  const ownerRow = document.getElementById('tag-owner-row');
-  if (storageType !== 'Sale') {
-    const ownerName = document.getElementById('in-owner').value.trim();
-    if (ownerName) {
-      ownerRow.textContent = `${storageType === 'Consignment Sale' ? 'CSG' : 'STORAGE'}: ${ownerName}`;
-      ownerRow.style.display = 'block';
-    } else ownerRow.style.display = 'none';
-  } else ownerRow.style.display = 'none';
-
-  document.getElementById('tag-notes-row').textContent = document.getElementById('in-printnotes').value.trim();
-  document.getElementById('tag-price-txt').textContent = `$${price.toFixed(2)}`;
-  const wasElem = document.getElementById('tag-was-txt');
-  if (was > 0) {
-    wasElem.textContent = `WAS $${was.toFixed(2)}`;
-    wasElem.style.display = 'inline';
-  } else wasElem.style.display = 'none';
-
-  const barcodeVal = activeSettings.barcode_preference === 'sku' ? (sku || serial) : (serial || sku);
-  renderBarcodeSafely("#tag-barcode-svg", barcodeVal, {
-    format: "CODE128", width: 2.2, height: 52, displayValue: true, fontSize: 14, margin: 0
-  });
-}
-
-async function saveIntakeRecord(e) {
-  e.preventDefault();
-  const destSafe = document.getElementById('in-safe').value;
-  if (!verifySafeCapacity(destSafe, 1)) return;
-
-  const payload = {
-    serial: document.getElementById('in-serial').value.trim(),
-    sku: document.getElementById('in-sku').value.trim(),
-    rego_no: document.getElementById('in-rego').value.trim(),
-    book_no: document.getElementById('in-book').value.trim(),
-    make: document.getElementById('in-make').value.trim(),
-    model: document.getElementById('in-model').value.trim(),
-    calibre: document.getElementById('in-calibre').value.trim(),
-    action: document.getElementById('in-action').value.trim(),
-    barrel: document.getElementById('in-specs').value.trim(),
-    category: document.getElementById('in-cat').value,
-    condition: document.getElementById('in-cond').value,
-    condition_report: document.getElementById('in-cond-report').value.trim(),
-    storage_type: document.getElementById('in-storage-type').value,
-    current_location_id: destSafe,
-    price: parseFloat(document.getElementById('in-price').value) || 0.0,
-    was_price: parseFloat(document.getElementById('in-was').value) || 0.0,
-    consignor_name: document.getElementById('in-owner').value.trim(),
-    consignor_phone: document.getElementById('in-phone').value.trim(),
-    printed_notes: document.getElementById('in-printnotes').value.trim()
-  };
-  await fetch('/api/firearms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  persistIntakeDefaults();
-  alert("Firearm record saved cleanly.");
-  document.getElementById('in-serial').value = '';
-  document.getElementById('in-sku').value = '';
-  document.getElementById('in-rego').value = '';
-  document.getElementById('in-book').value = '';
-  document.getElementById('in-model').value = '';
-  renderPreview();
-  loadArmoury(currentStorageFilter);
-  loadSafes();
-}
-
-function copyVal(id) {
-  const text = document.getElementById(id).textContent.trim();
-  if (!text || text === '-') return;
-  navigator.clipboard.writeText(text);
-}
-
-function closeModals() {
-  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
-}
-
-// PIN Fast-Switch
-function openPinModal() {
-  currentPinBuffer = "";
-  document.getElementById('pin-display').value = "";
-  document.getElementById('pin-modal').classList.add('open');
-}
-
-function pressPin(d) {
-  if (currentPinBuffer.length < 6) {
-    currentPinBuffer += d;
-    document.getElementById('pin-display').value = "•".repeat(currentPinBuffer.length);
-    if (currentPinBuffer.length === 4) setTimeout(submitPin, 150);
-  }
-}
-
-function clearPin() {
-  currentPinBuffer = "";
-  document.getElementById('pin-display').value = "";
-}
-
-async function submitPin() {
-  if (!currentPinBuffer) return;
-  const res = await fetch('/api/auth/pin-login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin: currentPinBuffer })
-  });
-  if (res.ok) {
-    const data = await res.json();
-    currentUser = data.user;
-    document.getElementById('op-name').textContent = currentUser.full_name;
-    document.getElementById('op-role').textContent = currentUser.role;
-    document.getElementById('op-role').className = `role-tag ${currentUser.role === 'Admin' ? 'role-admin' : 'role-emp'}`;
-    closeModals();
-  } else {
-    alert("Incorrect Staff PIN.");
-    clearPin();
-  }
-}
-
-// Settings
-function openSettingsModal() {
-  document.getElementById('set-name').value = activeSettings.store_name || '';
-  document.getElementById('set-licence').value = activeSettings.store_licence || '';
-  document.getElementById('set-phone').value = activeSettings.store_phone || '';
-  document.getElementById('set-email').value = activeSettings.store_email || '';
-  document.getElementById('set-address').value = activeSettings.store_address || '';
-  document.getElementById('set-barcode-pref').value = activeSettings.barcode_preference || 'serial';
-  document.getElementById('set-label-prof').value = activeSettings.default_label_profile || '62mm';
-  document.getElementById('settings-modal').classList.add('open');
-}
-
-async function saveSettings(e) {
-  e.preventDefault();
-  const payload = {
-    store_name: document.getElementById('set-name').value.trim(),
-    store_licence: document.getElementById('set-licence').value.trim(),
-    store_phone: document.getElementById('set-phone').value.trim(),
-    store_email: document.getElementById('set-email').value.trim(),
-    store_address: document.getElementById('set-address').value.trim(),
-    barcode_preference: document.getElementById('set-barcode-pref').value,
-    default_label_profile: document.getElementById('set-label-prof').value
-  };
-  const res = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const data = await res.json();
-  activeSettings = data.settings;
-  closeModals();
-}
-
-async function init() {
-  if (localStorage.getItem('cyanstock_theme') === 'light') toggleTheme();
-  const res = await fetch('/api/settings');
-  activeSettings = await res.json();
-  if (activeSettings.store_name) {
-    document.getElementById('tag-hdr-txt').textContent = activeSettings.store_name.toUpperCase();
-  }
-  loadSafes();
-  loadArmoury();
-  loadCustomers();
-  renderPreview();
-}
-
-init();
-</script>
-</body>
-</html>
+        <div class="card audit-hide">
+            <h3 style="margin-top:0;">+
